@@ -35,7 +35,7 @@ Select one packet, and it will automatically find related packets and reassemble
 After that processing, you are welcome to click the `Reassembly` button to convert them into one entire file.
 Only tested in FTP Transmission, HTML reassembly and ICMP(ping), and the file size can be up to 15MB (might take certain time processing to GUI)
 
-###Search bar makes things easier
+### Search bar makes things easier
 
 Using search bar wisely can actually save a lot of time.
 Keywords are searched in whole packet's hex or decoded by UTF-8 and GB2312,which is very convenient to find http headers of filename.
