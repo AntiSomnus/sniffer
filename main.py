@@ -120,6 +120,25 @@ def packet_align(s):
         s[n] = " ".join(s[n])
     return s
 
+def terminate_thread(thread):
+    """Terminates a python thread from another thread.
+
+    :param thread: a threading.Thread instance
+    """
+    if not thread.isAlive():
+        return
+
+    exc = py_object(SystemExit)
+    res = pythonapi.PyThreadState_SetAsyncExc(
+        c_long(thread.ident), exc)
+    if res == 0:
+        raise ValueError("nonexistent thread id")
+    elif res > 1:
+        # """if it returns a number greater than one, you're in trouble,
+        # and you should call it again with exc=NULL to revert the effect"""
+        pythonapi.PyThreadState_SetAsyncExc(thread.ident, None)
+        raise SystemError("PyThreadState_SetAsyncExc failed")
+
 
 # share = VAR()
 
@@ -128,7 +147,7 @@ class GUI(wx.Frame):
         """Initiate the GUI interface using wxpython when the Internet Interface list is loaded"""
         #load interface list
         self.sample_list = ifaces
-
+        self.t="" #initialize thread
         #initiate the frame
         wx.Frame.__init__(self, parent, id, title, size=(1000, 1030), style=wx.DEFAULT_FRAME_STYLE &
                           ~wx.MAXIMIZE_BOX ^ wx.RESIZE_BORDER, pos=(100, 0))
@@ -476,10 +495,11 @@ class GUI(wx.Frame):
         #get index of selected packet
         self.save.Show()
         val = int(event.GetText())
-
+        if (self.t!=""):
+            terminate_thread(self.t)
         #Adding a dedicated new thread for time-consuming caculation it packet processing
-        t = Thread(target=self.Choosing, args=(val,))
-        t.start()
+        self.t = Thread(target=self.Choosing, args=(val,))
+        self.t.start()
 
     def EvtCancelRow(self, event):
         """The event for right clicking a row(packet), which is to make the scroll bar update again."""
