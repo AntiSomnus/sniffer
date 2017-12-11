@@ -46,3 +46,11 @@ Keywords are searched in whole packet's hex or decoded by UTF-8 and GB2312,which
 
 The default MAX module will never let you down when an additional dedicated process is used for listening and sniffering.
 However, it is very CPU-consuming, but you can turn it off any time (have to stop and start to take effect)
+
+### Network Speed
+
+Although the value might be lower than the actual one due to the bottleneck of loading and computation, it's better than nothing!
+
+## Sample
+
+![Sample](/sample.png "Sample")
