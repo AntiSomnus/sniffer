@@ -53,4 +53,4 @@ Although the value might be lower than the actual one due to the bottleneck of l
 
 ## Sample
 
-![Sample](/sample.png =500x200 "Sample")
+![Sample](/sample.png "Sample")
