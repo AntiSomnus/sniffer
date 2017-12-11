@@ -120,6 +120,7 @@ def packet_align(s):
         s[n] = " ".join(s[n])
     return s
 
+
 def terminate_thread(thread):
     """Terminates a python thread from another thread.
 
@@ -145,34 +146,34 @@ def terminate_thread(thread):
 class GUI(wx.Frame):
     def __init__(self, parent, id, title, ifaces):
         """Initiate the GUI interface using wxpython when the Internet Interface list is loaded"""
-        #load interface list
+        # load interface list
         self.sample_list = ifaces
-        self.t="" #initialize thread
-        #initiate the frame
+        self.t = []  # initialize thread
+        # initiate the frame
         wx.Frame.__init__(self, parent, id, title, size=(1000, 1030), style=wx.DEFAULT_FRAME_STYLE &
                           ~wx.MAXIMIZE_BOX ^ wx.RESIZE_BORDER, pos=(100, 0))
-        #initiate the top panel
+        # initiate the top panel
         topPanel = wx.Panel(self)
 
-        #split the top panel into panel_1,panel_2_3,panel_4
-        #panel_1:the panel for setup sniffer and brief info of packets sniffed
+        # split the top panel into panel_1,panel_2_3,panel_4
+        # panel_1:the panel for setup sniffer and brief info of packets sniffed
         self.panel_1 = wx.Panel(topPanel, -1, pos=(0, 0), size=(1000, 400))
 
-        #panel_2_3:the splitable panel for panel_2 and panel_3
+        # panel_2_3:the splitable panel for panel_2 and panel_3
         self.panel_2_3 = wx.Panel(topPanel, -1, pos=(0, 400), size=(1000, 540))
         self.splitter = wx.SplitterWindow(self.panel_2_3)
 
-        #panel_2:the panel for showing detailed info of results sniffed
+        # panel_2:the panel for showing detailed info of results sniffed
         self.panel_2 = wx.Panel(self.splitter, -1, size=(1000, 50))
 
-        #panel_3:the panel for showing reassembly(IP,TCP,HTTP) info of packets sniffed
+        # panel_3:the panel for showing reassembly(IP,TCP,HTTP) info of packets sniffed
         self.panel_3 = wx.Panel(self.splitter, -1, size=(1000, 50))
         self.splitter.SplitHorizontally(self.panel_2, self.panel_3)
         self.splitter.SetMinimumPaneSize(50)
-        #panel_4:the panel for showing reassembly progress as well as button
+        # panel_4:the panel for showing reassembly progress as well as button
         self.panel_4 = wx.Panel(topPanel, -1, pos=(0, 940), size=(1000, 60))
 
-        #Progress of sizer to spilt and adjust all panels
+        # Progress of sizer to spilt and adjust all panels
         sizer = wx.BoxSizer(wx.VERTICAL)
         sizer.Add(self.panel_1, 1, wx.EXPAND | wx.ALL)
         sizer.Add(self.panel_2_3, 1, wx.EXPAND | wx.ALL)
@@ -323,7 +324,7 @@ class GUI(wx.Frame):
         # left click to choose a row and show detail and the scroll bar freezes
         self.Bind(wx.EVT_LIST_ITEM_SELECTED, self.EvtSelectRow, share.result_row)
         # right click to cancel a row and the scroll bar continues
-        self.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, self.EvtSelectRow, share.result_row)
+        self.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, self.EvtCancelRow, share.result_row)
 
         # The button for reassembling tcp/http and save in local
         self.reassembly = wx.Button(self.panel_4, label='Reassembly', pos=(400, -1), size=(200, 30))
@@ -372,11 +373,11 @@ class GUI(wx.Frame):
             if (filename != ""):
                 f = open(filename, "a")
                 for i in selection:
-                    f.write('No.' + str(share.list_packet[i].num) + '\nCapture Time:' + share.list_packet[i].time + 
-                            '\tSave Time:' + datetime.now().strftime("%H:%M:%S") + 
+                    f.write('No.' + str(share.list_packet[i].num) + '\nCapture Time:' + share.list_packet[i].time +
+                            '\tSave Time:' + datetime.now().strftime("%H:%M:%S") +
                             '\n' + share.list_packet[i].show(dump=True) + '\n')
                 f.close()
-                #open the file as soon as the progress of saving is finished
+                # open the file as soon as the progress of saving is finished
                 os.system(filename)
 
     def EvtStart(self, event):
@@ -413,7 +414,7 @@ class GUI(wx.Frame):
                 f = open(filename, "w")
                 f.write(self.bytes_array)
                 f.close()
-            #open the file as soon as the progress of saving is finished
+            # open the file as soon as the progress of saving is finished
             os.system(filename)
 
     def EvtTextPro(self, event):
@@ -463,7 +464,7 @@ class GUI(wx.Frame):
         keyword = self.search.GetValue()
         for i in range(len(share.list_tmp)):
             try:
-                #keywords can exist in raw/utf-8/GB2312 packet
+                # keywords can exist in raw/utf-8/GB2312 packet
                 sentence = share.list_packet[i].packet_to_all().lower()
                 sentence += share.list_packet[i].packet_to_load_gb().lower()
                 sentence += share.list_packet[i].packet_to_load_utf8().lower()
@@ -473,7 +474,7 @@ class GUI(wx.Frame):
                 share.result_row.Append(share.list_tmp[i])
                 self.index_new.append(i)
         if (keyword == ""):
-            #if nothing is in the searchbar, return the whole result and keep sniffering
+            # if nothing is in the searchbar, return the whole result and keep sniffering
             share.flag_search = False
             share.flag_select = False
 
@@ -490,16 +491,35 @@ class GUI(wx.Frame):
             share.flag_search = False
             share.flag_select = False
 
+    def terminate_thread(self, thread):
+        """Terminates a python thread from another thread.
+
+        :param thread: a threading.Thread instance
+        """
+        if not thread.isAlive():
+            return
+
+        exc = py_object(SystemExit)
+        res = pythonapi.PyThreadState_SetAsyncExc(
+            c_long(thread.ident), exc)
+        #print(thread.isAlive())
+        if res == 0:
+            raise ValueError("nonexistent thread id")
+        elif res > 1:
+            # """if it returns a number greater than one, you're in trouble,
+            # and you should call it again with exc=NULL to revert the effect"""
+            pythonapi.PyThreadState_SetAsyncExc(thread.ident, None)
+            raise SystemError("PyThreadState_SetAsyncExc failed")
+
     def EvtSelectRow(self, event):
         """The event for selecting a row(packet), which is to show detailed and reassembly information about the chosen packet."""
-        #get index of selected packet
+        # get index of selected packet
         self.save.Show()
+        # if lock.locked():
         val = int(event.GetText())
-        if (self.t!=""):
-            terminate_thread(self.t)
-        #Adding a dedicated new thread for time-consuming caculation it packet processing
-        self.t = Thread(target=self.Choosing, args=(val,))
-        self.t.start()
+        # Adding a dedicated new thread for time-consuming caculation it packet processing
+        self.t.append(Thread(target=self.Choosing, args=(val,)))
+        self.t[-1].start()
 
     def EvtCancelRow(self, event):
         """The event for right clicking a row(packet), which is to make the scroll bar update again."""
@@ -523,7 +543,7 @@ class GUI(wx.Frame):
 
     def Choosing(self, val):
         """Create a new tab when the notebook and content is given"""
-        #freeze the panel_2,panel_# for processing
+        # freeze the panel_2,panel_# for processing
         self.panel_2.Freeze()
         self.panel_3.Freeze()
 
@@ -673,7 +693,7 @@ class GUI(wx.Frame):
             self.panel_3.Thaw()
         except:
             pass
-
+        
 
 def InfiniteProcess(flag_dict, pkt_lst):
     """The dedicated process to sniff, which is to get the iface and filter and then starting sniffing"""
@@ -738,10 +758,10 @@ def process():
         if ((share.flag_select == False and share.flag_search == False)
                 or (share.flag_select == True and share.flag_cancel == True
                     and share.flag_search == False)):
-            #make the scroll bar update
+            # make the scroll bar update
             share.result_row.EnsureVisible(share.result_row.GetItemCount() - 1)
 
-        #possible preprocess for TCP reassembly
+        # possible preprocess for TCP reassembly
         if packet.haslayer(TCP):
             seq = packet.packet[TCP].seq
             if hasattr(packet.packet[TCP], "load"):
@@ -750,7 +770,7 @@ def process():
                 seqlen = 0
             share.tcp_seq[seq] = (packet.num, seqlen)
 
-        #possible preprocess for IP reassembly
+        # possible preprocess for IP reassembly
         if packet.haslayer(IP):
             if packet.packet[IP].flags != 2:
                 if (packet.packet[IP].src, packet.packet[IP].dst,
@@ -783,7 +803,7 @@ def networkspeed():
                     s_down += packet.len()
             position = length
 
-            #format
+            # format
             if s_up // 1024 < 1:
                 speed_up = str(round(s_up, 1)) + "Bps"
             elif s_up // 1024 ** 2 < 1:
@@ -801,7 +821,8 @@ def networkspeed():
 
 
 if __name__ == "__main__":
-    #using class VAR instance 'share' to share variable among multiple threads in main process
+    # using class VAR instance 'share' to share variable among multiple threads in main process
+    lock = threading.Lock()
     share = VAR()
     list_tmp = []
     while (len(list_tmp) <= 1):
@@ -814,7 +835,7 @@ if __name__ == "__main__":
     for i in range(len(share.interfaces)):
         share.mac_dict[share.interfaces[i]] = share.list_mac[i]
 
-    #using manager to share values between processes
+    # using manager to share values between processes
     manager = Manager()
     iface = manager.Value(c_char_p, "")
     pro = manager.Value(c_char_p, "")
@@ -832,7 +853,7 @@ if __name__ == "__main__":
     flag_dict['dst'] = ''
     flag_dict['dport'] = ''
 
-    #list to store and fetch packet
+    # list to store and fetch packet
     pkt_lst = manager.Queue()
     p = Process(target=InfiniteProcess, name="InfiniteProcess", args=(flag_dict, pkt_lst))
     p.daemon = True
