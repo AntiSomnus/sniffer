@@ -12,19 +12,14 @@ Use modified [scapy3k](https://github.com/phaethon/scapy)
 Only test and modify the lib concerning Windows users
 Need to install [Win10Pcap(Recommended)](http://www.win10pcap.org/), Npcap(might have slight issue of missing certain packet).
 
-```
-
-
 ### Usage
-
 ```
 python main.py
 ```
 
-
 ## Feature
 
-Explain how to run the automated tests for this system
+Multiple features in this project.
 
 ### Filter on protocol, src, dst, sport and dport.
 
