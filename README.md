@@ -12,7 +12,7 @@ Use modified [scapy3k](https://github.com/phaethon/scapy)
 
 Only test and modify the lib concerning Windows users.
 
-Need to install [Win10Pcap(Recommended)](http://www.win10pcap.org/), Npcap(might have slight issue of missing certain packet).
+Need to install [Win10Pcap(Recommended)](http://www.win10pcap.org/), Npcap(might have slight issue of missing certain packets).
 
 ### Usage
 ```
@@ -53,4 +53,4 @@ Although the value might be lower than the actual one due to the bottleneck of l
 
 ## Sample
 
-![Sample](/sample.png "Sample")
+![Sample](/sample.png =500x200 "Sample")
