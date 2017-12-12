@@ -6,15 +6,16 @@ import threading
 from multiprocessing import Manager, Process
 from ctypes import *
 from time import sleep
+from datetime import datetime
+
+"""Import from other files in this directory"""
+from var import VAR
+from packet_r import Packet_r
 #redirect all output to files in order to keep the console clean
 #filename  = open("outputfile.txt",'w')
 #sys.stdout = filename
+
 from contextlib import contextmanager
-from datetime import datetime
-
-from var import VAR
-from packet_r import Packet_r
-
 
 @contextmanager
 def redirect_stderr(new_target):
@@ -26,7 +27,6 @@ def redirect_stderr(new_target):
     finally:
         sys.stderr = old_target
 
-
 with open(os.devnull, 'w') as errf:
     """suppress all annoying warnings when loading scapy"""
     with redirect_stderr(errf):
@@ -36,6 +36,7 @@ with open(os.devnull, 'w') as errf:
 """use pcap to capture in Windows"""
 conf.use_pcap = True
 
+"""Folling libs are used to parse http response"""
 import urllib3
 from io import BytesIO
 from http.client import HTTPResponse
@@ -122,28 +123,6 @@ def packet_align(s):
     return s
 
 
-def terminate_thread(thread):
-    """Terminates a python thread from another thread.
-
-    :param thread: a threading.Thread instance
-    """
-    if not thread.isAlive():
-        return
-
-    exc = py_object(SystemExit)
-    res = pythonapi.PyThreadState_SetAsyncExc(
-        c_long(thread.ident), exc)
-    if res == 0:
-        raise ValueError("nonexistent thread id")
-    elif res > 1:
-        # """if it returns a number greater than one, you're in trouble,
-        # and you should call it again with exc=NULL to revert the effect"""
-        pythonapi.PyThreadState_SetAsyncExc(thread.ident, None)
-        raise SystemError("PyThreadState_SetAsyncExc failed")
-
-
-# share = VAR()
-
 class GUI(wx.Frame):
     def __init__(self, parent, id, title, ifaces):
         """Initiate the GUI interface using wxpython when the Internet Interface list is loaded"""
@@ -218,24 +197,22 @@ class GUI(wx.Frame):
         self.Bind(wx.EVT_COMBOBOX, self.EvtComboBox, self.iface)
 
         # network speed(download and upload)
-        self.hint_speed_down = wx.StaticText(
-            self.panel_1, label='↓', pos=(660, 15))
+        self.hint_speed_down = wx.StaticText(self.panel_1, label='↓', pos=(660, 15))
         self.hint_speed_down.SetFont(self.font_12)
-        share.network_speed_down = wx.StaticText(
-            self.panel_1, label='', pos=(670, 15))
+        share.network_speed_down = wx.StaticText(self.panel_1, label='', pos=(670, 15))
         share.network_speed_down.SetFont(self.font_12)
 
-        self.hint_speed_up = wx.StaticText(
-            self.panel_1, label='↑', pos=(850, 15))
+        self.hint_speed_up = wx.StaticText(self.panel_1, label='↑', pos=(850, 15))
         self.hint_speed_up.SetFont(self.font_12)
-        share.network_speed_up = wx.StaticText(
-            self.panel_1, label='', pos=(860, 15))
+        share.network_speed_up = wx.StaticText(self.panel_1, label='', pos=(860, 15))
         share.network_speed_up.SetFont(self.font_12)
 
         '''2nd line'''
         # choose protocol
         self.hint_pro = wx.StaticText(
-            self.panel_1, label='PROTOCOL', pos=(10, 55)).SetFont(self.font_12)
+            self.panel_1, 
+            label='PROTOCOL',
+            pos=(10, 55)).SetFont(self.font_12)
         self.pro = wx.TextCtrl(self.panel_1, pos=(100, 55), size=(120, -1))
         self.pro.SetFont(self.font_10)
         self.Bind(wx.EVT_TEXT, self.EvtTextPro, self.pro)
@@ -251,7 +228,9 @@ class GUI(wx.Frame):
 
         # choose sport
         self.hint_sport = wx.StaticText(
-            self.panel_1, label='SPORT', pos=(410, 55)).SetFont(self.font_12)
+            self.panel_1, 
+            label='SPORT', 
+            pos=(410, 55)).SetFont(self.font_12)
         self.sport = wx.TextCtrl(self.panel_1, pos=(480, 55), size=(120, -1))
         self.sport.SetFont(self.font_10)
         self.Bind(wx.EVT_TEXT, self.EvtTextSport, self.sport)
@@ -267,7 +246,9 @@ class GUI(wx.Frame):
 
         # choose dport
         self.hint_dport = wx.StaticText(
-            self.panel_1, label='DPORT', pos=(790, 55)).SetFont(self.font_12)
+            self.panel_1, 
+            label='DPORT', 
+            pos=(790, 55)).SetFont(self.font_12)
         self.dport = wx.TextCtrl(self.panel_1, pos=(850, 55), size=(120, -1))
         self.dport.SetFont(self.font_10)
         self.Bind(wx.EVT_TEXT, self.EvtTextDport, self.dport)
@@ -275,7 +256,10 @@ class GUI(wx.Frame):
         '''3rd line'''
         # button start/stop
         self.button = wx.Button(
-            self.panel_1, label='START', pos=(660, 95), size=(120, 30))
+            self.panel_1, 
+            label='START',
+            pos=(660, 95), 
+            size=(120, 30))
         self.button.SetFont(self.font_12)
         self.Bind(wx.EVT_BUTTON, self.EvtStart, self.button)
 
@@ -565,7 +549,7 @@ class GUI(wx.Frame):
             s = ""
             s = s + "No. " + str(val) + "\n" + i[0] + "\n"
             for key in i[1]:
-                s = s + "%s: %s\n" % (key, i[1][key])
+                s = s + "%-10s%s\n" % ((key[0].upper()+key[1:]+":"), i[1][key])
             wx.CallAfter(self.CreateNewTab, self.notebook1, i[0], s)
         wx.CallAfter(self.CreateNewTab, self.notebook1, "Whole in hex", share.list_packet[val].hexdump())
         try:
