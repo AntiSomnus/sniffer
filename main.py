@@ -1,12 +1,12 @@
 import logging
 logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
 import os
-import wx
+import sys
 import threading
 from multiprocessing import Manager, Process
 from ctypes import *
 from time import sleep
-# redirect all output to files in order to keep the console clean
+#redirect all output to files in order to keep the console clean
 #filename  = open("outputfile.txt",'w')
 #sys.stdout = filename
 from contextlib import contextmanager
@@ -31,6 +31,7 @@ with open(os.devnull, 'w') as errf:
     """suppress all annoying warnings when loading scapy"""
     with redirect_stderr(errf):
         from scapy.all import *
+        import wx
 
 """use pcap to capture in Windows"""
 conf.use_pcap = True
@@ -332,6 +333,8 @@ class GUI(wx.Frame):
         self.Bind(wx.EVT_BUTTON, self.EvtReassemble, self.reassembly)
         self.reassembly.Hide()
 
+        self.size_label = wx.StaticText(self.panel_4, label='', pos=(700, 7), size=(200, 30))
+        self.size_label.SetFont(self.font_12)
         # Event bind for close the window
         self.Bind(wx.EVT_CLOSE, self.OnClose)
 
@@ -391,8 +394,17 @@ class GUI(wx.Frame):
             flag_dict['start'] = not flag_dict['start']
             if (flag_dict['start']):
                 self.button.SetLabel('Stop')
+                sleep(0.5)
+                if (flag_dict['error']==True):
+                    flag_dict['start']=False
+                    dlg = wx.MessageDialog(None, u"Filter is not right. Please rewrite!", u"Fatal Error")
+                    self.button.SetLabel('Start')
+                    if dlg.ShowModal() == wx.ID_YES:
+                        dlg.Destroy()
+                    
             else:
                 self.button.SetLabel('Start')
+            
 
     def EvtReassemble(self, event):
         """The event for clicking the Reassembly button, which is to save the whole packets' load information into a file
@@ -491,26 +503,6 @@ class GUI(wx.Frame):
             share.flag_search = False
             share.flag_select = False
 
-    def terminate_thread(self, thread):
-        """Terminates a python thread from another thread.
-
-        :param thread: a threading.Thread instance
-        """
-        if not thread.isAlive():
-            return
-
-        exc = py_object(SystemExit)
-        res = pythonapi.PyThreadState_SetAsyncExc(
-            c_long(thread.ident), exc)
-        #print(thread.isAlive())
-        if res == 0:
-            raise ValueError("nonexistent thread id")
-        elif res > 1:
-            # """if it returns a number greater than one, you're in trouble,
-            # and you should call it again with exc=NULL to revert the effect"""
-            pythonapi.PyThreadState_SetAsyncExc(thread.ident, None)
-            raise SystemError("PyThreadState_SetAsyncExc failed")
-
     def EvtSelectRow(self, event):
         """The event for selecting a row(packet), which is to show detailed and reassembly information about the chosen packet."""
         # get index of selected packet
@@ -543,6 +535,8 @@ class GUI(wx.Frame):
 
     def Choosing(self, val):
         """Create a new tab when the notebook and content is given"""
+        #clear the size label 
+        self.size_label.SetLabel("")
         # freeze the panel_2,panel_# for processing
         self.panel_2.Freeze()
         self.panel_3.Freeze()
@@ -612,9 +606,8 @@ class GUI(wx.Frame):
                 s = "No. " + str(val) + " can be TCP assembled by "
                 for i in final_tcp_seq:
                     s = s + "No. " + str(i[1][0]) + ", "
-                s = s + "\n" + "After reassembly:" + "\n" + "\n"
+                s = s[:-2] + "\n" + "After reassembly:" + "\n" + "\n"
                 s_gb = s_utf8 = s_raw = ""
-
                 try:
                     first_index = final_tcp_seq[0][1][0]
                     content = b''
@@ -627,7 +620,7 @@ class GUI(wx.Frame):
                     s = b"No. " + bytes(str(val), 'utf8') + b" can be HTTP assembled by "
                     for i in final_tcp_seq:
                         s = s + b"No. " + bytes(str(i[1][0]), 'utf8') + b", "
-                    s = s + b"\n" + b"After reassembly:" + b"\n" + b"\n"
+                    s = s[:-2] + b"\n" + b"After reassembly:" + b"\n" + b"\n"
                     try:
                         content = response.data
                     except:
@@ -638,6 +631,7 @@ class GUI(wx.Frame):
                     wx.CallAfter(self.CreateNewTab, self.notebook2, "HTTP HEADER", h)
                     wx.CallAfter(self.CreateNewTab, self.notebook2, "HTTP CONTENT", s + content)
                 except:
+                    self.reassemble_size=0
                     self.bytes_array = b""
                     for i in final_tcp_seq:
                         try:
@@ -647,6 +641,7 @@ class GUI(wx.Frame):
 
                         s_raw = s_raw + share.list_packet[i[1][0]].packet_to_load_plain()
                         if (i[1][1] != 0):
+                            self.reassemble_size+=len(share.list_packet[i[1][0]].load)
                             s_gb = s_gb + share.list_packet[i[1][0]].packet_to_load_gb()
                             s_utf8 = s_utf8 + share.list_packet[i[1][0]].packet_to_load_utf8()
                     q = ""
@@ -657,8 +652,9 @@ class GUI(wx.Frame):
                     wx.CallAfter(self.CreateNewTab, self.notebook2, "TCP reassemble Hex", s_raw)
                     wx.CallAfter(self.CreateNewTab, self.notebook2, "TCP reassemble UTF-8", s_utf8)
                     wx.CallAfter(self.CreateNewTab, self.notebook2, "TCP reassemble GB2312", s_gb)
-
+                    self.size_label.SetLabel("Total Size: "+str(self.reassemble_size)+"B")
                 wx.CallAfter(self.reassembly.Show)
+
 
         if (final_ip_seq != "" and len(final_ip_seq) != 1):  # Satisify IP reassembly
             if (final_ip_seq == 'Too large to assemble'):  # Too big for memory
@@ -666,16 +662,17 @@ class GUI(wx.Frame):
                 wx.CallAfter(self.CreateNewTab, self.notebook2, "IP reassemble failed", final_ip_seq)
 
             else:
+                self.reassemble_size=0
                 s = "No. " + str(val) + " can be IP assembled by "
                 for i in final_ip_seq:
                     s = s + "No. " + str(i[0]) + ", "
-                s = s + "\n" + "After reassembly:" + "\n" + "\n"
+                s = s[:-2] + "\n" + "After reassembly:" + "\n" + "\n"
                 s_gb = s_utf8 = s_raw = ""
                 for i in final_ip_seq:
                     s_raw = s_raw + share.list_packet[i[0]].packet_to_load_plain()
                     s_gb = s_gb + share.list_packet[i[0]].packet_to_load_gb()
                     s_utf8 = s_utf8 + share.list_packet[i[0]].packet_to_load_utf8()
-
+                    self.reassemble_size+=len(share.list_packet[i[0]].load)
                 self.bytes_array = s_utf8
 
                 q = ""
@@ -686,8 +683,8 @@ class GUI(wx.Frame):
                 wx.CallAfter(self.CreateNewTab, self.notebook2, "IP reassemble Hex", s_raw)
                 wx.CallAfter(self.CreateNewTab, self.notebook2, "IP reassemble UTF-8", s_utf8)
                 wx.CallAfter(self.CreateNewTab, self.notebook2, "IP reassemble GB2312", s_gb)
-
                 wx.CallAfter(self.reassembly.Show)
+                self.size_label.SetLabel("Total Size: "+str(self.reassemble_size)+"B")
 
         try:
             self.panel_3.Thaw()
@@ -700,6 +697,7 @@ def InfiniteProcess(flag_dict, pkt_lst):
     while (flag_dict['close'] == False):
         sleep(0.1)
         if (flag_dict['start'] == True):
+            flag_dict['error'] = False
             sleep(0.1)
             f = ""
             if (flag_dict['close'] == False):
@@ -714,25 +712,28 @@ def InfiniteProcess(flag_dict, pkt_lst):
                         elif (key == 'dport'):
                             f += " and dst port " + flag_dict['dport']
                 f = f[5:]
-
-            if (f == ""):
-                a = sniff(
-                    iface=flag_dict['iface'],
-                    store=0,
-                    pkt_lst=pkt_lst,
-                    flag_dict=flag_dict,
-                    stopperTimeout=0.2
-
-                )
-            else:
-                a = sniff(
-                    iface=flag_dict['iface'],
-                    store=0,
-                    filter=f,
-                    pkt_lst=pkt_lst,
-                    flag_dict=flag_dict,
-                    stopperTimeout=0.2
-                )
+            try:
+                if (f == ""):
+                    a = sniff(
+                        iface=flag_dict['iface'],
+                        store=0,
+                        pkt_lst=pkt_lst,
+                        flag_dict=flag_dict,
+                        stopperTimeout=0.2
+                    )
+                else:
+                    a = sniff(
+                        iface=flag_dict['iface'],
+                        store=0,
+                        filter=f,
+                        pkt_lst=pkt_lst,
+                        flag_dict=flag_dict,
+                        stopperTimeout=0.2
+                    )
+            except NameError:
+                flag_dict['error']= True
+                continue
+                
 
 
 def process():
@@ -846,13 +847,14 @@ if __name__ == "__main__":
     flag_dict['start'] = False
     flag_dict['close'] = False
     flag_dict['max'] = True
+    flag_dict['error'] = False
     flag_dict['iface'] = ''
     flag_dict['pro'] = ''
     flag_dict['src'] = ''
     flag_dict['sport'] = ''
     flag_dict['dst'] = ''
     flag_dict['dport'] = ''
-
+    
     # list to store and fetch packet
     pkt_lst = manager.Queue()
     p = Process(target=InfiniteProcess, name="InfiniteProcess", args=(flag_dict, pkt_lst))
