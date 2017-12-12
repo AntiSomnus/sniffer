@@ -1,6 +1,7 @@
 import os
+import socket
 from contextlib import contextmanager
-
+from var import VAR
 @contextmanager
 def redirect_stderr(new_target):
 
@@ -14,6 +15,11 @@ def redirect_stderr(new_target):
 with open(os.devnull, 'w') as errf:
     with redirect_stderr(errf):
         from scapy.all import *
+
+
+#dictionary :protocal number->name
+dict_pro = {num:name[8:] for name,num in vars(socket).items() if name.startswith("IPPROTO")}
+
 
 class Packet_r():
     """Class for loading packet and further modifications"""
@@ -77,15 +83,18 @@ class Packet_r():
                 pkt_src = self.packet[IPv6].src
                 pkt_dst = self.packet[IPv6].dst
         try:
-            if 'padding' in self.packet.lastlayer().name.lower():
-                if 'raw' in self.packet.lastlayer().underlayer.name.lower():
-                    pkt_pro = self.packet.lastlayer().underlayer.underlayer.name
-                else:
-                    pkt_pro = self.packet.lastlayer().underlayer.name
-            elif 'raw' in self.packet.lastlayer().name.lower():
-                pkt_pro = self.packet.lastlayer().underlayer.name
+            if (self.packet.getlayer(IP)):
+                pkt_pro=dict_pro[int(self.packet[IP].proto)]
             else:
-                pkt_pro = self.packet.lastlayer().name
+                if 'padding' in self.packet.lastlayer().name.lower():
+                    if 'raw' in self.packet.lastlayer().underlayer.name.lower():
+                        pkt_pro = self.packet.lastlayer().underlayer.underlayer.name
+                    else:
+                        pkt_pro = self.packet.lastlayer().underlayer.name
+                elif 'raw' in self.packet.lastlayer().name.lower():
+                    pkt_pro = self.packet.lastlayer().underlayer.name
+                else:
+                    pkt_pro = self.packet.lastlayer().name
 
             info = [
                 str(self.packet.num),

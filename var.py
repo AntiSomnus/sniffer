@@ -2,8 +2,7 @@ class VAR():
     """Class for shared variables in multipule threads of main process"""
     def __init__(self):
 
-        self.interfaces = []    #
-        self.fo = ''
+        self.interfaces = []    #network interface list
 
         # False: Window not closed;
         # True: Window is closed
@@ -31,4 +30,3 @@ class VAR():
         self.mac_dict = {}
         self.mac = ''
         self.dict_time = {}  # capture time dict  packet:time
-

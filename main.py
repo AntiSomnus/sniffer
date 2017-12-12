@@ -394,9 +394,10 @@ class GUI(wx.Frame):
             flag_dict['start'] = not flag_dict['start']
             if (flag_dict['start']):
                 self.button.SetLabel('Stop')
-                sleep(0.5)
+                sleep(1)
                 if (flag_dict['error']==True):
                     flag_dict['start']=False
+                    flag_dict['error'] = False
                     dlg = wx.MessageDialog(None, u"Filter is not right. Please rewrite!", u"Fatal Error")
                     self.button.SetLabel('Start')
                     if dlg.ShowModal() == wx.ID_YES:
@@ -696,8 +697,8 @@ def InfiniteProcess(flag_dict, pkt_lst):
     """The dedicated process to sniff, which is to get the iface and filter and then starting sniffing"""
     while (flag_dict['close'] == False):
         sleep(0.1)
-        if (flag_dict['start'] == True):
-            flag_dict['error'] = False
+        if (flag_dict['start'] == True and flag_dict['error'] == False):
+            
             sleep(0.1)
             f = ""
             if (flag_dict['close'] == False):
