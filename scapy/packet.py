@@ -89,6 +89,98 @@ class Packet(BasePacket, metaclass = Packet_metaclass):
                 self.dissection_done(self)
         for f in fields.keys():
             self.fields[f] = self.get_field(f).any2i(self,fields[f])
+        if self.name == "IP":
+            flags = bin(self.fields["flags"])
+            self.fields["flags"] = str(self.fields["flags"])
+            if flags == "0b0":
+                self.fields["flags"] += ", DF=0, MF=0"
+            else:
+                try:
+                    f = ""
+                    if flags[-1] == "0":
+                        f = ", MF=0)" + f
+                    elif flags[-1] == "1":
+                        f = ", MF=1)" + f
+                    if flags[-2] == "0":
+                        f = " (DF=0" + f
+                    elif flags[-2] == "1":
+                        f = " (DF=1" + f
+                except Exception as e:
+                    pass
+                    # print(e)
+                finally:
+                    self.fields["flags"] = self.fields["flags"] + f
+        if self.name == "TCP":
+            flags = bin(self.fields["flags"])
+            self.fields["flags"] = str(self.fields["flags"])
+            # if flags == "0b0":
+                # self.fields["flags"] += ", NS=0, CWR=0, ECE=0, URG=0, ACK=0, PSH=0, RST=0, SYN=0, FIN=0"
+            # else:
+            if flags != "0b0":
+                f = ""
+                flags = flags[2:]
+                try:
+                    if flags[-1] == "1":
+                        f = ", FIN" + f
+                    if flags[-2] == "1":
+                        f = ", SYN" + f
+                    if flags[-3] == "1":
+                        f = ", RST" + f
+                    if flags[-4] == "1":
+                        f = ", PSH" + f
+                    if flags[-5] == "1":
+                        f = ", ACK" + f
+                    if flags[-6] == "1":
+                        f = ", URG" + f
+                    if flags[-7] == "1":
+                        f = ", ECE" + f
+                    if flags[-8] == "1":
+                        f = ", CWR" + f
+                    if flags[-9] == "1":
+                        f = ", NS" + f
+                    # if flags[-1] == "0":
+                        # f = ", FIN=0" + f
+                    # elif flags[-1] == "1":
+                        # f = ", FIN=1" + f
+                    # if flags[-2] == "0":
+                        # f = ", SYN=0" + f
+                    # elif flags[-2] == "1":
+                        # f = ", SYN=1" + f
+                    # if flags[-3] == "0":
+                        # f = ", RST=0" + f
+                    # elif flags[-3] == "1":
+                        # f = ", RST=1" + f
+                    # if flags[-4] == "0":
+                        # f = ", PSH=0" + f
+                    # elif flags[-4] == "1":
+                        # f = ", PSH=1" + f
+                    # if flags[-5] == "0":
+                        # f = ", ACK=0" + f
+                    # elif flags[-5] == "1":
+                        # f = ", ACK=1" + f
+                    # if flags[-6] == "0":
+                        # f = ", URG=0" + f
+                    # elif flags[-6] == "1":
+                        # f = ", URG=1" + f
+                    # if flags[-7] == "0":
+                        # f = ", ECE=0" + f
+                    # elif flags[-7] == "1":
+                        # f = ", ECE=1" + f
+                    # if flags[-8] == "0":
+                        # f = ", CWR=0" + f
+                    # elif flags[-8] == "1":
+                        # f = ", CWR=1" + f
+                    # if flags[-9] == "0":
+                        # f = ", NS=0" + f
+                    # elif flags[-9] == "1":
+                        # f = ", NS=1" + f
+                except Exception as e:
+                    pass
+                    # print(e)
+                    # print(f)
+                finally:
+                    self.fields["flags"] = self.fields["flags"] + " (" + f[2:] + ")"
+
         if type(post_transform) is list:
             self.post_transforms = post_transform
         elif post_transform is None:
@@ -391,19 +483,19 @@ class Packet(BasePacket, metaclass = Packet_metaclass):
     
     def build_ps(self,internal=0):
         p,lst = self.do_build_ps()
-#        if not internal:
-#            pkt = self
-#            while pkt.haslayer(conf.padding_layer):
-#                pkt = pkt.getlayer(conf.padding_layer)
-#                lst.append( (pkt, [ ("loakjkjd", pkt.load, pkt.load) ] ) )
-#                p += pkt.load
-#                pkt = pkt.payload
+    #        if not internal:
+    #            pkt = self
+    #            while pkt.haslayer(conf.padding_layer):
+    #                pkt = pkt.getlayer(conf.padding_layer)
+    #                lst.append( (pkt, [ ("loakjkjd", pkt.load, pkt.load) ] ) )
+    #                p += pkt.load
+    #                pkt = pkt.payload
         return p,lst
 
 
     def psdump(self, filename=None, **kargs):
         """psdump(filename=None, layer_shift=0, rebuild=1)
-Creates an EPS file describing a packet. If filename is not provided a temporary file is created and gs is called."""
+        Creates an EPS file describing a packet. If filename is not provided a temporary file is created and gs is called."""
         canvas = self.canvas_dump(**kargs)
         if filename is None:
             fname = get_temp_file(autoext=".eps")
@@ -446,7 +538,7 @@ Creates an EPS file describing a packet. If filename is not provided a temporary
     
         backcolor=colgen(0.6, 0.8, 1.0, trans=pyx.color.rgb)
         forecolor=colgen(0.2, 0.5, 0.8, trans=pyx.color.rgb)
-#        backcolor=makecol(0.376, 0.729, 0.525, 1.0)
+    #        backcolor=makecol(0.376, 0.729, 0.525, 1.0)
         
         
         def hexstr(x):
@@ -912,27 +1004,27 @@ Creates an EPS file describing a packet. If filename is not provided a temporary
 
     def sprintf(self, fmt, relax=1):
         """sprintf(format, [relax=1]) -> str
-where format is a string that can include directives. A directive begins and
-ends by % and has the following format %[fmt[r],][cls[:nb].]field%.
+        where format is a string that can include directives. A directive begins and
+        ends by % and has the following format %[fmt[r],][cls[:nb].]field%.
 
-fmt is a classic printf directive, "r" can be appended for raw substitution
-(ex: IP.flags=0x18 instead of SA), nb is the number of the layer we want
-(ex: for IP/IP packets, IP:2.src is the src of the upper IP layer).
-Special case : "%.time%" is the creation time.
-Ex : p.sprintf("%.time% %-15s,IP.src% -> %-15s,IP.dst% %IP.chksum% "
-               "%03xr,IP.proto% %r,TCP.flags%")
+        fmt is a classic printf directive, "r" can be appended for raw substitution
+        (ex: IP.flags=0x18 instead of SA), nb is the number of the layer we want
+        (ex: for IP/IP packets, IP:2.src is the src of the upper IP layer).
+        Special case : "%.time%" is the creation time.
+        Ex : p.sprintf("%.time% %-15s,IP.src% -> %-15s,IP.dst% %IP.chksum% "
+                    "%03xr,IP.proto% %r,TCP.flags%")
 
-Moreover, the format string can include conditionnal statements. A conditionnal
-statement looks like : {layer:string} where layer is a layer name, and string
-is the string to insert in place of the condition if it is true, i.e. if layer
-is present. If layer is preceded by a "!", the result si inverted. Conditions
-can be imbricated. A valid statement can be :
-  p.sprintf("This is a{TCP: TCP}{UDP: UDP}{ICMP:n ICMP} packet")
-  p.sprintf("{IP:%IP.dst% {ICMP:%ICMP.type%}{TCP:%TCP.dport%}}")
+        Moreover, the format string can include conditionnal statements. A conditionnal
+        statement looks like : {layer:string} where layer is a layer name, and string
+        is the string to insert in place of the condition if it is true, i.e. if layer
+        is present. If layer is preceded by a "!", the result si inverted. Conditions
+        can be imbricated. A valid statement can be :
+        p.sprintf("This is a{TCP: TCP}{UDP: UDP}{ICMP:n ICMP} packet")
+        p.sprintf("{IP:%IP.dst% {ICMP:%ICMP.type%}{TCP:%TCP.dport%}}")
 
-A side effect is that, to obtain "{" and "}" characters, you must use
-"%(" and "%)".
-"""
+        A side effect is that, to obtain "{" and "}" characters, you must use
+        "%(" and "%)".
+        """
 
         escape = { "%": "%",
                    "(": "{",
