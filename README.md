@@ -14,6 +14,8 @@ Only test and modify the lib concerning Windows users.
 
 Need to install [Win10Pcap(Recommended)](http://www.win10pcap.org/), Npcap(might have slight issue of missing certain packets).
 
+GUI: wxPython
+
 ### Usage
 ```
 python main.py
