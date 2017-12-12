@@ -444,6 +444,7 @@ class GUI(wx.Frame):
         global flag_dict
         flag_dict['iface'] = event.GetString()
         share.mac = share.mac_dict[flag_dict['iface']]
+        flag_dict['mac']=share.mac_dict[flag_dict['iface']]
 
     def EvtCheckBoxHigh(self, event):
         """The event for selecting the mode of mulitiprocessing for the higher-end performance, which is to save it for filter(default:on)"""
@@ -697,27 +698,27 @@ def InfiniteProcess(flag_dict, pkt_lst):
                         elif (key == 'dport'):
                             f += " and dst port " + flag_dict['dport']
                 f = f[5:]
-            try:
-                if (f == ""):
-                    a = sniff(
-                        iface=flag_dict['iface'],
-                        store=0,
-                        pkt_lst=pkt_lst,
-                        flag_dict=flag_dict,
-                        stopperTimeout=0.2
-                    )
-                else:
-                    a = sniff(
-                        iface=flag_dict['iface'],
-                        store=0,
-                        filter=f,
-                        pkt_lst=pkt_lst,
-                        flag_dict=flag_dict,
-                        stopperTimeout=0.2
-                    )
-            except NameError:
-                flag_dict['error']= True
-                continue
+            #try:
+            if (f == ""):
+                a = sniff(
+                    iface=flag_dict['iface'],
+                    store=0,
+                    pkt_lst=pkt_lst,
+                    flag_dict=flag_dict,
+                    stopperTimeout=0.2
+                )
+            else:
+                a = sniff(
+                    iface=flag_dict['iface'],
+                    store=0,
+                    filter=f,
+                    pkt_lst=pkt_lst,
+                    flag_dict=flag_dict,
+                    stopperTimeout=0.2
+                )
+            #except NameError:
+                #flag_dict['error']= True
+                #continue
                 
 
 
@@ -778,32 +779,23 @@ def networkspeed():
     global flag_dict
     while (flag_dict['close'] == False):
         sleep(1)
-        length = len(share.list_packet)
-        if (length > 0):
-            s_up = 0
-            s_down = 0
-            for packet in share.list_packet[position:]:
-                if (packet.src == share.mac):
-                    s_up += packet.len()
-                elif (packet.dst == share.mac):
-                    s_down += packet.len()
-            position = length
-
-            # format
-            if s_up // 1024 < 1:
-                speed_up = str(round(s_up, 1)) + "Bps"
-            elif s_up // 1024 ** 2 < 1:
-                speed_up = str(round(s_up / 1024, 1)) + 'KBps'
-            elif s_up // 1024 ** 3 < 1:
-                speed_up = str(round(s_up / 1024 ** 2, 1)) + "MBps"
-            if s_down // 1024 < 1:
-                speed_down = str(round(s_down, 1)) + "Bps"
-            elif s_up // 1024 ** 2 < 1:
-                speed_down = str(round(s_down / 1024, 1)) + 'KBps'
-            elif s_up // 1024 ** 3 < 1:
-                speed_down = str(round(s_down / 1024 ** 2, 1)) + "MBps"
-            share.network_speed_down.SetLabel('%10s' % speed_down)
-            share.network_speed_up.SetLabel('%10s' % speed_up)
+        s_up=flag_dict['up']
+        s_down=flag_dict['down']
+        # format
+        if s_up // 1024 < 1:
+            speed_up = str(round(s_up, 1)) + "Bps"
+        elif s_up // 1024 ** 2 < 1:
+            speed_up = str(round(s_up / 1024, 1)) + 'KBps'
+        elif s_up // 1024 ** 3 < 1:
+            speed_up = str(round(s_up / 1024 ** 2, 1)) + "MBps"
+        if s_down // 1024 < 1:
+            speed_down = str(round(s_down, 1)) + "Bps"
+        elif s_up // 1024 ** 2 < 1:
+            speed_down = str(round(s_down / 1024, 1)) + 'KBps'
+        elif s_up // 1024 ** 3 < 1:
+            speed_down = str(round(s_down / 1024 ** 2, 1)) + "MBps"
+        share.network_speed_down.SetLabel('%10s' % speed_down)
+        share.network_speed_up.SetLabel('%10s' % speed_up)
 
 
 if __name__ == "__main__":
@@ -839,6 +831,10 @@ if __name__ == "__main__":
     flag_dict['sport'] = ''
     flag_dict['dst'] = ''
     flag_dict['dport'] = ''
+
+    flag_dict['mac']=''
+    flag_dict['up']=0
+    flag_dict['down']=0
     
     # list to store and fetch packet
     pkt_lst = manager.Queue()

@@ -351,7 +351,7 @@ if conf.use_winpcapy:
                 p=self.ins.next()
                 if (p!=None):
                     #print (p)
-                    self.pkt_lst.append(p)
+                    self.pkt_lst.append([p,datetime.now().strftime("%H:%M:%S")])
                     self.num_capture+=1
                     #print (num_capture)
 

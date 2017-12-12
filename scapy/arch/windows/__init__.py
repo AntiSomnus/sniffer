@@ -465,7 +465,11 @@ L2socket: use the provided L2socket
 stop_callback: Call every loop to determine if we need
                to stop the capture
     """
+    mac=flag_dict['mac']
+    up=0
+    down=0
     c = 0
+    last_time=''
     if offline is None:
         if L2socket is None:
             L2socket = conf.L2listen
@@ -510,7 +514,7 @@ stop_callback: Call every loop to determine if we need
                     if(flag_dict['start']==False):
                         return (None)
                     pass
-                pkt=s.pkt_lst[s.num_process]
+                pkt,t=s.pkt_lst[s.num_process][0],s.pkt_lst[s.num_process][1]
                 ts, pkt = pkt
                         # if scapy.arch.WINDOWS and pkt is None:
                             #raise PcapTimeoutElapsed
@@ -523,7 +527,6 @@ stop_callback: Call every loop to determine if we need
                     if conf.debug_dissector:
                         raise
                     pkt = conf.raw_layer(pkt)
-                pkt.time = ts
                 s.num_process+=1
                 p=pkt
                 length=s.num_process
@@ -534,7 +537,21 @@ stop_callback: Call every loop to determine if we need
                     continue
                 if store:
                     lst.append(p)
-                pkt_lst.put([bytes(p),datetime.now().strftime("%H:%M:%S")])
+                pkt_lst.put([bytes(p),t])
+                if (last_time==''):
+                    last_time=t
+                if (t==last_time):
+                    if (p.src==mac):
+                        up += len(p)
+                    elif(p.dst==mac):
+                        down+=len(p)
+                else:
+                    last_time=t
+                    flag_dict['up']=up
+                    flag_dict['down']=down
+                    up=0
+                    down=0
+
                 #print (length,str(datetime.now()),bytes(p))
                 c += 1
                 if prn:
