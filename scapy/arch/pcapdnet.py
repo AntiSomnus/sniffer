@@ -350,8 +350,8 @@ if conf.use_winpcapy:
                 #sleep(0.001)
                 p=self.ins.next()
                 if (p!=None):
-                    #print (p)
-                    self.pkt_lst.append([p,datetime.now().strftime("%H:%M:%S")])
+                    a=[p,datetime.now().strftime("%H:%M:%S")]
+                    self.pkt_lst.append(a)
                     self.num_capture+=1
                     #print (num_capture)
 

@@ -1,3 +1,6 @@
+
+import psutil
+import re
 class VAR():
     """Class for shared variables in multipule threads of main process"""
     def __init__(self):
@@ -30,3 +33,8 @@ class VAR():
         self.mac_dict = {}
         self.mac = ''
         self.dict_time = {}  # capture time dict  packet:time
+
+        self.dict_mac2name={} #mac:name of mac
+        for i in psutil.net_if_addrs():
+            a=re.sub(r'\W+', '', psutil.net_if_addrs()[i][0].address.lower())
+            self.dict_mac2name[a]=i

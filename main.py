@@ -3,11 +3,11 @@ logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
 import os
 import sys
 import threading
-from multiprocessing import Manager, Process
+from multiprocessing import Manager, Process,Queue
 from ctypes import *
-from time import sleep
+from time import sleep,time
 from datetime import datetime
-
+import re
 """Import from other files in this directory"""
 from var import VAR
 from packet_r import Packet_r
@@ -40,8 +40,8 @@ conf.use_pcap = True
 import urllib3
 from io import BytesIO
 from http.client import HTTPResponse
-
-
+""" psutil is used to detect network speed"""
+import psutil
 class BytesIOSocket:
     """Class to read bytes using BytesIO"""
 
@@ -705,7 +705,7 @@ def InfiniteProcess(flag_dict, pkt_lst):
                     store=0,
                     pkt_lst=pkt_lst,
                     flag_dict=flag_dict,
-                    stopperTimeout=0.2
+                    stopperTimeout=0.2,
                 )
             else:
                 a = sniff(
@@ -714,7 +714,7 @@ def InfiniteProcess(flag_dict, pkt_lst):
                     filter=f,
                     pkt_lst=pkt_lst,
                     flag_dict=flag_dict,
-                    stopperTimeout=0.2
+                    stopperTimeout=0.2,
                 )
             #except NameError:
                 #flag_dict['error']= True
@@ -778,25 +778,47 @@ def networkspeed():
     position = 0
     global flag_dict
     while (flag_dict['close'] == False):
+        s_up=0.00
+        s_down=0.00
+        while (share.mac==''):
+            sleep(0.5)
         sleep(1)
-        s_up=flag_dict['up']
-        s_down=flag_dict['down']
-        # format
-        if s_up // 1024 < 1:
-            speed_up = str(round(s_up, 1)) + "Bps"
-        elif s_up // 1024 ** 2 < 1:
-            speed_up = str(round(s_up / 1024, 1)) + 'KBps'
-        elif s_up // 1024 ** 3 < 1:
-            speed_up = str(round(s_up / 1024 ** 2, 1)) + "MBps"
-        if s_down // 1024 < 1:
-            speed_down = str(round(s_down, 1)) + "Bps"
-        elif s_up // 1024 ** 2 < 1:
-            speed_down = str(round(s_down / 1024, 1)) + 'KBps'
-        elif s_up // 1024 ** 3 < 1:
-            speed_down = str(round(s_down / 1024 ** 2, 1)) + "MBps"
-        share.network_speed_down.SetLabel('%10s' % speed_down)
-        share.network_speed_up.SetLabel('%10s' % speed_up)
+        t0 = time.time()
+        macname=share.dict_mac2name[share.mac]
+        upload=psutil.net_io_counters(pernic=True)[macname][0]
+        download=psutil.net_io_counters(pernic=True)[macname][1]
+        up_down=(upload,download)
+        while (flag_dict['start']==True):
+            last_up_down = up_down
+            upload=psutil.net_io_counters(pernic=True)[macname][0]
+            download=psutil.net_io_counters(pernic=True)[macname][1]
+            t1 = time.time()
+            up_down = (upload,download)
+            try:
+                s_up, s_down = [(now - last) / (t1 - t0) 
+                        for now,last in zip(up_down, last_up_down)]             
+                t0 = time.time()
+            except:
+                pass
 
+            time.sleep(0.5) 
+            os.system('cls')
+            s_up,s_down=int(s_up),int(s_down) 
+            if s_up // 1024 < 1:
+                speed_up = str(round(s_up, 1)) + "Bps"
+            elif s_up // 1024 ** 2 < 1:
+                speed_up = str(round(s_up / 1024, 1)) + 'KBps'
+            elif s_up // 1024 ** 3 < 1:
+                speed_up = str(round(s_up / 1024 ** 2, 1)) + "MBps"
+            if s_down // 1024 < 1:
+                speed_down = str(round(s_down, 1)) + "Bps"
+            elif s_up // 1024 ** 2 < 1:
+                speed_down = str(round(s_down / 1024, 1)) + 'KBps'
+            elif s_up // 1024 ** 3 < 1:
+                speed_down = str(round(s_down / 1024 ** 2, 1)) + "MBps"
+            share.network_speed_down.SetLabel('%10s' % speed_down)
+            share.network_speed_up.SetLabel('%10s' % speed_up)
+        
 
 if __name__ == "__main__":
     # using class VAR instance 'share' to share variable among multiple threads in main process
@@ -808,7 +830,7 @@ if __name__ == "__main__":
         share.list_mac = []
         for i, n in ifaces.items():
             share.interfaces.append(i)
-            share.list_mac.append(n.mac.lower())
+            share.list_mac.append(re.sub(r'\W+', '', n.mac.lower()))
         list_tmp = share.interfaces
     for i in range(len(share.interfaces)):
         share.mac_dict[share.interfaces[i]] = share.list_mac[i]
@@ -841,7 +863,7 @@ if __name__ == "__main__":
     p = Process(target=InfiniteProcess, name="InfiniteProcess", args=(flag_dict, pkt_lst))
     p.daemon = True
     p.start()
-
+    
     finish = False
     process_list = [process, networkspeed]
     thread_list = []
@@ -851,7 +873,7 @@ if __name__ == "__main__":
         thread_list[i].start()
 
     app = wx.App()
-    frame = GUI(None, -1, 'sniffer v1.0', share.interfaces)
+    frame = GUI(None, -1, 'sniffer v1.1', share.interfaces)
 
     frame.Show()
     app.MainLoop()
