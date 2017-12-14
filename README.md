@@ -17,8 +17,7 @@ Need to install [Win10Pcap(Recommended)](http://www.win10pcap.org/), Npcap(might
 GUI: wxPython
 
 Other libs: [PyShark](https://github.com/KimiNewt/pyshark) Used to parse packet to WireShark style brief information.	
-		
-			[psutil] (https://github.com/giampaolo/psutil) Used to detect packet received amount in system level to calculate network speed. 
+			[psutil](https://github.com/giampaolo/psutil) Used to detect packet received amount in system level to calculate network speed. 
 
 ### Usage
 ```
@@ -66,6 +65,7 @@ Please notice that this feature will only take effect when you stop because it w
 
 
 ## Sample
-
+Sniffer v1.0:
 ![Sample](/sample.png "Sample")
+Sniffer v1.1:
 ![Sample](/sample2.png "New Feature")
