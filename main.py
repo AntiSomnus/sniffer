@@ -42,6 +42,8 @@ from io import BytesIO
 from http.client import HTTPResponse
 """ psutil is used to detect network speed"""
 import psutil
+""" pyshark for get brief info"""
+import pyshark
 class BytesIOSocket:
     """Class to read bytes using BytesIO"""
 
@@ -276,7 +278,7 @@ class GUI(wx.Frame):
         self.max.SetValue(True)
         self.max.SetFont(self.font_12)
         self.Bind(wx.EVT_CHECKBOX, self.EvtCheckBoxHigh, self.max)
-
+        self.max.Bind(wx.EVT_MOTION, self.EvtMouseOnMax)
         # search bar
         self.search = wx.SearchCtrl(
             self.panel_1,
@@ -310,6 +312,8 @@ class GUI(wx.Frame):
         self.Bind(wx.EVT_LIST_ITEM_SELECTED, self.EvtSelectRow, share.result_row)
         # right click to cancel a row and the scroll bar continues
         self.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, self.EvtCancelRow, share.result_row)
+        # right click to cancel a row and the scroll bar continues
+        share.result_row.Bind(wx.EVT_MOTION, self.EvtMouseOnRow) 
 
         # The button for reassembling tcp/http and save in local
         self.reassembly = wx.Button(self.panel_4, label='Reassembly', pos=(400, -1), size=(200, 30))
@@ -321,6 +325,24 @@ class GUI(wx.Frame):
         self.size_label.SetFont(self.font_12)
         # Event bind for close the window
         self.Bind(wx.EVT_CLOSE, self.OnClose)
+    
+
+        
+    def EvtMouseOnRow(self, event):
+        if (len(share.list_info)>0 and flag_dict['start']==False):
+            x = event.GetX()
+            y = event.GetY()
+            index, flags = share.result_row.HitTest((x, y))
+            if (index>=0):
+                if (share.flag_search==True):
+                    share.result_row.SetToolTip(share.list_info[share.dict_search[index]].info)
+                else:
+                    share.result_row.SetToolTip(share.list_info[index].info)
+            
+
+    def EvtMouseOnMax(self, event):
+        self.max.SetToolTip("MAX mode provides ultimate performance with additional dedicated process to sniff,"\
+                            " which hardly loses packets at all and of course is a monster at CPU consumption")
 
     def SetCustomFont(self, size):
         """Get font size and return a Font instance"""
@@ -389,8 +411,16 @@ class GUI(wx.Frame):
                     
             else:
                 self.button.SetLabel('Start')
+        if (flag_dict['start']==False and len(share.list_byte)>0):
+            t=Thread(target=self.CurrentPktToInfo)
+            t.start()
             
-
+    def CurrentPktToInfo(self):
+        a=pyshark.InMemCapture(only_summaries=True)
+        share.list_info=a.parse_packets(share.list_byte)
+        a.close()
+        
+        
     def EvtReassemble(self, event):
         """The event for clicking the Reassembly button, which is to save the whole packets' load information into a file
            Only support TCP reassembly(especially for ftp) and HTTP reassembly(get the whole html)"""
@@ -460,6 +490,7 @@ class GUI(wx.Frame):
         share.flag_search = True
         self.index_new = []
         keyword = self.search.GetValue()
+        after_search_index=0
         for i in range(len(share.list_tmp)):
             try:
                 # keywords can exist in raw/utf-8/GB2312 packet
@@ -469,6 +500,8 @@ class GUI(wx.Frame):
             except:
                 pass
             if (keyword.lower() in sentence):
+                share.dict_search[after_search_index]=i
+                after_search_index+=1
                 share.result_row.Append(share.list_tmp[i])
                 self.index_new.append(i)
         if (keyword == ""):
@@ -630,6 +663,9 @@ class GUI(wx.Frame):
                             self.reassemble_size+=len(share.list_packet[i[1][0]].load)
                             s_gb = s_gb + share.list_packet[i[1][0]].packet_to_load_gb()
                             s_utf8 = s_utf8 + share.list_packet[i[1][0]].packet_to_load_utf8()
+                    self.size_label.SetLabel("Total Size: "+str(self.reassemble_size)+"B")
+                    self.panel_3.Thaw()
+                    self.panel_3.Freeze()
                     q = ""
                     q = q + "".join(packet_align(s_raw))
                     s_gb = s + "\n" + "Decoded by GB2312:" + "\n" + s_gb
@@ -638,7 +674,7 @@ class GUI(wx.Frame):
                     wx.CallAfter(self.CreateNewTab, self.notebook2, "TCP reassemble Hex", s_raw)
                     wx.CallAfter(self.CreateNewTab, self.notebook2, "TCP reassemble UTF-8", s_utf8)
                     wx.CallAfter(self.CreateNewTab, self.notebook2, "TCP reassemble GB2312", s_gb)
-                    self.size_label.SetLabel("Total Size: "+str(self.reassemble_size)+"B")
+                    
                 wx.CallAfter(self.reassembly.Show)
 
 
@@ -658,9 +694,12 @@ class GUI(wx.Frame):
                     s_raw = s_raw + share.list_packet[i[0]].packet_to_load_plain()
                     s_gb = s_gb + share.list_packet[i[0]].packet_to_load_gb()
                     s_utf8 = s_utf8 + share.list_packet[i[0]].packet_to_load_utf8()
-                    self.reassemble_size+=len(share.list_packet[i[0]].load)
+                    try:
+                        self.reassemble_size+=len(share.list_packet[i[0]].load)
+                    except AttributeError:
+                        pass
                 self.bytes_array = s_utf8
-
+                self.size_label.SetLabel("Total Size: "+str(self.reassemble_size)+"B")
                 q = ""
                 q = q + "".join(packet_align(s_raw))
                 s_gb = s + "\n" + "Decoded by GB2312:" + "\n" + s_gb
@@ -670,7 +709,7 @@ class GUI(wx.Frame):
                 wx.CallAfter(self.CreateNewTab, self.notebook2, "IP reassemble UTF-8", s_utf8)
                 wx.CallAfter(self.CreateNewTab, self.notebook2, "IP reassemble GB2312", s_gb)
                 wx.CallAfter(self.reassembly.Show)
-                self.size_label.SetLabel("Total Size: "+str(self.reassemble_size)+"B")
+                
 
         try:
             self.panel_3.Thaw()
@@ -732,6 +771,7 @@ def process():
 
         except:
             continue
+        share.list_byte.append(p[0])
         packet = Ether(p[0])
         packet.time = p[1]
         packet.num = num
@@ -818,6 +858,8 @@ def networkspeed():
                 speed_down = str(round(s_down / 1024 ** 2, 1)) + "MBps"
             share.network_speed_down.SetLabel('%10s' % speed_down)
             share.network_speed_up.SetLabel('%10s' % speed_up)
+        share.network_speed_down.SetLabel('%10s' % '0')
+        share.network_speed_up.SetLabel('%10s' % '0')
         
 
 if __name__ == "__main__":
@@ -873,7 +915,7 @@ if __name__ == "__main__":
         thread_list[i].start()
 
     app = wx.App()
-    frame = GUI(None, -1, 'sniffer v1.1', share.interfaces)
+    frame = GUI(None, -1, 'sniffer v1.2', share.interfaces)
 
     frame.Show()
     app.MainLoop()
