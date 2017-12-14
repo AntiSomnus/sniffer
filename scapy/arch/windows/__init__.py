@@ -560,8 +560,6 @@ stop_callback: Call every loop to determine if we need
                 if store:
                     lst.append(p)
                 pkt_lst.put([bytes(p), t])
-
-                #print (length,str(datetime.now()),bytes(p))
                 c += 1
                 if prn:
                     r = prn(p)

@@ -324,31 +324,36 @@ class GUI(wx.Frame):
         self.size_label = wx.StaticText(self.panel_4, label='', pos=(700, 7), size=(200, 30))
         self.size_label.SetFont(self.font_12)
         # Event bind for close the window
-        self.Bind(wx.EVT_CLOSE, self.OnClose)
+        self.Bind(wx.EVT_CLOSE, self.EvtClose)
     
 
         
     def EvtMouseOnRow(self, event):
+        """When mouse is on one of the packets, the event is to show WireShark style Info"""
         if (len(share.list_info)>0 and flag_dict['start']==False):
             x = event.GetX()
             y = event.GetY()
             index, flags = share.result_row.HitTest((x, y))
             if (index>=0):
-                if (share.flag_search==True):
-                    share.result_row.SetToolTip(share.list_info[share.dict_search[index]].info)
-                else:
-                    share.result_row.SetToolTip(share.list_info[index].info)
-            
+                try:
+                    if (share.flag_search==True):
+                        share.result_row.SetToolTip(share.list_info[share.dict_search[index]].info)
+                    else:
+                        share.result_row.SetToolTip(share.list_info[index].info)
+                except:
+                    share.result_row.SetToolTip("wait for processing!")
 
     def EvtMouseOnMax(self, event):
+        """When mouse cursor on max checkbox, instructions occurs."""
         self.max.SetToolTip("MAX mode provides ultimate performance with additional dedicated process to sniff,"\
-                            " which hardly loses packets at all and of course is a monster at CPU consumption")
-
+                            " which hardly loses packets at all and of course is a monster at CPU consumption.\n"\
+                            "At the Same time, additional thread is open to caculate WireShark type info on mouse cursor focus.")
+        self.max.setto
     def SetCustomFont(self, size):
         """Get font size and return a Font instance"""
         return (wx.Font(size, wx.MODERN, wx.NORMAL, wx.LIGHT, False, u'Consolas'))
 
-    def OnClose(self, event):
+    def EvtClose(self, event):
         """The event for closing the GUI, which is to terminate everthing involved"""
         global flag_dict
         flag_dict['close'] = True
@@ -411,14 +416,21 @@ class GUI(wx.Frame):
                     
             else:
                 self.button.SetLabel('Start')
-        if (flag_dict['start']==False and len(share.list_byte)>0):
+        #When it's stopped and chosen max mode, additional thread is open to show quick info on mouse movement
+        if (flag_dict['start']==False and len(share.list_byte)>0 and flag_dict["max"]==True):
             t=Thread(target=self.CurrentPktToInfo)
             t.start()
             
     def CurrentPktToInfo(self):
+        """Convert all current packets existed to WireShark type info"""
         a=pyshark.InMemCapture(only_summaries=True)
         share.list_info=a.parse_packets(share.list_byte)
-        a.close()
+        #a.close()
+
+        for proc in psutil.process_iter():
+            # check whether the process name matches
+            if proc.name() == "dumpcap.exe":
+                proc.kill()
         
         
     def EvtReassemble(self, event):
@@ -772,6 +784,7 @@ def process():
         except:
             continue
         share.list_byte.append(p[0])
+        #print (share.list_byte)
         packet = Ether(p[0])
         packet.time = p[1]
         packet.num = num
