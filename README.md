@@ -68,9 +68,8 @@ Please notice that this feature will only take effect when you stop because it w
 
 
 ## Sample
-Sniffer v1.0:
+### Sniffer v1.0:
 ![Sample](/sample.png "Sample")
 
-
-Sniffer v1.1:
+### Sniffer v1.1:
 ![Sample](/sample2.png "New Feature")
