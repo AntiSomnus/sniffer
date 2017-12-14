@@ -330,7 +330,7 @@ class GUI(wx.Frame):
         
     def EvtMouseOnRow(self, event):
         """When mouse is on one of the packets, the event is to show WireShark style Info"""
-        if (len(share.list_info)>0 and flag_dict['start']==False):
+        if (flag_dict['start']==False):
             x = event.GetX()
             y = event.GetY()
             index, flags = share.result_row.HitTest((x, y))
@@ -559,7 +559,6 @@ class GUI(wx.Frame):
         except:
             text = wx.TextCtrl(page, -1, "UnicodeDecodeError: 'utf-8' codec can't decode this information",
                                style=wx.TE_MULTILINE | wx.BORDER_NONE | wx.TE_READONLY)
-        text.SetMaxLength(2147438647)
         text.SetFont(self.font_10)
         bsizer.Add(text, 1, wx.EXPAND)
         page.SetSizerAndFit(bsizer)
