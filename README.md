@@ -8,17 +8,19 @@ Just download them all and run main.py
 
 ### Prerequisites
 
-Use modified [scapy3k](https://github.com/phaethon/scapy)
+####Use modified [scapy3k](https://github.com/phaethon/scapy)
 
 Only test and modify the lib concerning Windows users.
 
 Need to install [Win10Pcap(Recommended)](http://www.win10pcap.org/), Npcap(might have slight issue of missing certain packets).
 
-GUI: wxPython
+####GUI: wxPython
 
-Other libs: [PyShark](https://github.com/KimiNewt/pyshark) Used to parse packet to WireShark style brief information.	
+####Other libs: 
 
-			[psutil](https://github.com/giampaolo/psutil) Used to detect packet received amount in system level to calculate network speed. 
+[PyShark](https://github.com/KimiNewt/pyshark) Used to parse packet to WireShark style brief information.	
+
+[psutil](https://github.com/giampaolo/psutil) Used to detect packet received amount in system level to calculate network speed. 
 
 ### Usage
 ```
