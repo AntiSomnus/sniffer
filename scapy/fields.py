@@ -899,6 +899,7 @@ class FlagsField(BitField):
         else:
             r = ""
         i=0
+        x=int(x.split(' ')[0].split(',')[0])
         while x:
             if x & 1:
                 if self.multi:

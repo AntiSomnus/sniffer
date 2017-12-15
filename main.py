@@ -11,6 +11,7 @@ import re
 """Import from other files in this directory"""
 from var import VAR
 from packet_r import Packet_r
+from httpconverter import HttpConverter
 #redirect all output to files in order to keep the console clean
 #filename  = open("outputfile.txt",'w')
 #sys.stdout = filename
@@ -32,36 +33,19 @@ with open(os.devnull, 'w') as errf:
     with redirect_stderr(errf):
         from scapy.all import *
         import wx
+        import wx.adv
 
 """use pcap to capture in Windows"""
 conf.use_pcap = True
 
-"""Folling libs are used to parse http response"""
-import urllib3
-from io import BytesIO
-from http.client import HTTPResponse
+
 """ psutil is used to detect network speed"""
 import psutil
 """ pyshark for get brief info"""
 import pyshark
-class BytesIOSocket:
-    """Class to read bytes using BytesIO"""
-
-    def __init__(self, content):
-        self.handle = BytesIO(content)
-
-    def makefile(self, mode):
-        return self.handle
 
 
-def response_from_bytes(data):
-    """Convert a bytes into a readable http response string"""
-    sock = BytesIOSocket(data)
-    response = HTTPResponse(sock)
-    response.begin()
-    return urllib3.HTTPResponse.from_httplib(response)
-
-
+"""The following fuctions are used to handle tcp reassembly"""
 def packet_tcp_seq(seq):
     """Return tcp reassembly result"""
     seq_keys = list(share.tcp_seq.keys())
@@ -73,7 +57,6 @@ def packet_tcp_seq(seq):
     q = packet_tcp_seq_forward(seq_keys, position, q)
     final_tcp_seq = p + q
     return final_tcp_seq
-
 
 def packet_tcp_seq_forward(seq_keys, position, p):
     """Return tcp reassembly forward result"""
@@ -94,7 +77,6 @@ def packet_tcp_seq_forward(seq_keys, position, p):
             break
     return p
 
-
 def packet_tcp_seq_backward(seq_keys, position, p):
     """Return tcp reassembly backward result"""
     flag = True
@@ -113,7 +95,7 @@ def packet_tcp_seq_backward(seq_keys, position, p):
             break
     return p
 
-
+"""The following fuction is used to convert hex bytes to formatted hex"""
 def packet_align(s):
     """Return wireshark-type raw hex"""
     s = [s[i:i + 32] for i in range(0, len(s), 32)]
@@ -216,6 +198,7 @@ class GUI(wx.Frame):
             label='PROTOCOL',
             pos=(10, 55)).SetFont(self.font_12)
         self.pro = wx.TextCtrl(self.panel_1, pos=(100, 55), size=(120, -1))
+        self.pro.AutoComplete(["ip","ip6","tcp","udp","igmp","icmp","arp","icmp6"])
         self.pro.SetFont(self.font_10)
         self.Bind(wx.EVT_TEXT, self.EvtTextPro, self.pro)
 
@@ -327,32 +310,217 @@ class GUI(wx.Frame):
         self.Bind(wx.EVT_CLOSE, self.EvtClose)
     
 
-        
-    def EvtMouseOnRow(self, event):
-        """When mouse is on one of the packets, the event is to show WireShark style Info"""
-        if (flag_dict['start']==False):
-            x = event.GetX()
-            y = event.GetY()
-            index, flags = share.result_row.HitTest((x, y))
-            if (index>=0):
-                try:
-                    if (share.flag_search==True):
-                        share.result_row.SetToolTip(share.list_info[share.dict_search[index]].info)
-                    else:
-                        share.result_row.SetToolTip(share.list_info[index].info)
-                except:
-                    share.result_row.SetToolTip("wait for processing!")
+    #The following functions are not events but additional modification or adding a new thread to prevent GUI from freezing
 
-    def EvtMouseOnMax(self, event):
-        """When mouse cursor on max checkbox, instructions occurs."""
-        self.max.SetToolTip("MAX mode provides ultimate performance with additional dedicated process to sniff,"\
-                            " which hardly loses packets at all and of course is a monster at CPU consumption.\n"\
-                            "At the Same time, additional thread is open to caculate WireShark type info on mouse cursor focus.")
-        self.max.setto
     def SetCustomFont(self, size):
         """Get font size and return a Font instance"""
         return (wx.Font(size, wx.MODERN, wx.NORMAL, wx.LIGHT, False, u'Consolas'))
 
+    def OpenFile(self,filename):
+        """A new thread to open file in new windows so that the GUI will not freeze."""
+        os.system(filename)
+    
+    def CreateNewTab(self, notebook, title, content):
+        """Create a new tab when the notebook and content is given"""
+        bsizer = wx.BoxSizer()
+        page = wx.Panel(notebook)
+        notebook.AddPage(page, title)
+        try:
+            text = wx.TextCtrl(page, -1, content, style=wx.TE_MULTILINE | wx.BORDER_NONE | wx.TE_READONLY)
+        except:
+            text = wx.TextCtrl(page, -1, "UnicodeDecodeError: 'utf-8' codec can't decode this information",
+                               style=wx.TE_MULTILINE | wx.BORDER_NONE | wx.TE_READONLY)
+        text.SetFont(self.font_10)
+        bsizer.Add(text, 1, wx.EXPAND)
+        page.SetSizerAndFit(bsizer)
+    
+    def Choosing(self, val):
+        """A new thread is open to process when a packet is chosen"""
+        #clear the size label 
+        self.size_label.SetLabel("")
+        # freeze the panel_2,panel_# for processing
+        self.panel_2.Freeze()
+        self.panel_3.Freeze()
+
+        # not cancel a row
+        share.flag_cancel = False
+
+        # clear all remaining tabs
+        try:
+
+            while (self.notebook2.GetPageCount()):
+                self.notebook2.DeletePage(0)
+            while (self.notebook1.GetPageCount()):
+                self.notebook1.DeletePage(0)
+        except:
+            pass
+
+        share.flag_select = True  # select a row
+        layerlist = share.list_packet[val].packet_to_layerlist()
+        final_tcp_seq = ""
+        final_ip_seq = ""
+
+        for i in layerlist:
+            # notebook1 with detailed info for single packet
+            s = ""
+            s = s + "No. " + str(val) + "\n" + i[0] + "\n"
+            for key in i[1]:
+                s = s + "%-10s%s\n" % ((key[0].upper()+key[1:]+":"), i[1][key])
+            wx.CallAfter(self.CreateNewTab, self.notebook1, i[0], s)
+        wx.CallAfter(self.CreateNewTab, self.notebook1, "Whole in hex", share.list_packet[val].hexdump())
+        try:
+            if (share.list_packet[val].load):
+                wx.CallAfter(self.CreateNewTab, self.notebook1, "Load in utf-8", share.list_packet[val].packet_to_load_utf8())
+                wx.CallAfter(self.CreateNewTab, self.notebook1, "Load in GB2312", share.list_packet[val].packet_to_load_gb())
+        except:
+            pass
+
+        try:
+            self.panel_2.Thaw()
+        except:
+            pass
+
+        for i in layerlist:
+            # detect IP/TCP reassembly
+            if "IP" in i:
+                if i[1]["flags"] != 2:
+                    (ip_src, ip_dst, ip_id) = (i[1]["src"], i[1]["dst"],
+                                               i[1]["id"])
+                    try:
+                        final_ip_seq = share.ip_seq[(ip_src, ip_dst, ip_id)]
+                    except:
+                        final_ip_seq = 'Too large to assemble'
+
+            if "TCP" in i:
+                try:
+                    final_tcp_seq = packet_tcp_seq(i[1]["seq"])
+                except:
+                    final_tcp_seq = 'Too large to assemble'
+                final_tcp_seq = packet_tcp_seq(i[1]["seq"])
+        if (final_tcp_seq != ""):  # Satisify TCP reassembly
+            self.processing = wx.StaticText(self.panel_4, label='Processing.....................', size=(1000, 40))
+            self.processing.SetFont(self.font_12)
+            if (final_tcp_seq == 'Too large to assemble'):  # Too big for memory
+                wx.CallAfter(self.CreateNewTab, self.notebook2, "TCP reassemble failed", final_tcp_seq)
+
+            else:
+                s = "No. " + str(val) + " can be TCP assembled by "
+                for i in final_tcp_seq:
+                    s = s + "No. " + str(i[1][0]) + ", "
+                s = s[:-2] + "\n" + "After reassembly:" + "\n" + "\n"
+                s_gb = s_utf8 = s_raw = ""
+                try:
+                    first_index = final_tcp_seq[0][1][0]
+                    content = b''
+                    for i in final_tcp_seq:
+                        content += share.list_packet[i[1][0]].load
+                    response = HttpConverter(content).getcontent()
+                    h = ""
+                    for i in response.headers:
+                        h += str(i) + " : " + str(response.headers[i]) + "\n"
+                    s = b"No. " + bytes(str(val), 'utf8') + b" can be HTTP assembled by "
+                    for i in final_tcp_seq:
+                        s = s + b"No. " + bytes(str(i[1][0]), 'utf8') + b", "
+                    s = s[:-2] + b"\n" + b"After reassembly:" + b"\n" + b"\n"
+                    try:
+                        content = response.data
+                    except:
+                        pass
+                    self.bytes_array = content
+                    h = "HTTP Header in No. " + str(first_index) + '\n' + h
+
+                    wx.CallAfter(self.CreateNewTab, self.notebook2, "HTTP HEADER", h)
+                    wx.CallAfter(self.CreateNewTab, self.notebook2, "HTTP CONTENT", s + content)
+                except:
+                    self.reassemble_size=0
+                    self.bytes_array = b""
+                    for i in final_tcp_seq:
+                        try:
+                            self.bytes_array += share.list_packet[i[1][0]].load
+                        except:
+                            pass
+
+                        s_raw = s_raw + share.list_packet[i[1][0]].packet_to_load_plain()
+                        if (i[1][1] != 0):
+                            self.reassemble_size+=len(share.list_packet[i[1][0]].load)
+                            s_gb = s_gb + share.list_packet[i[1][0]].packet_to_load_gb()
+                            s_utf8 = s_utf8 + share.list_packet[i[1][0]].packet_to_load_utf8()
+                    self.size_label.SetLabel("Total Size: "+str(self.reassemble_size)+"B")
+                    self.panel_3.Thaw()
+                    self.panel_3.Freeze()
+                    q = ""
+                    q = q + "".join(packet_align(s_raw))
+                    s_gb = s + "\n" + "Decoded by GB2312:" + "\n" + s_gb
+                    s_utf8 = s + "\n" + "Decoded by UTF8:" + "\n" + s_utf8
+                    s_raw = s + "Raw bytes:" + "\n" + q
+                    wx.CallAfter(self.CreateNewTab, self.notebook2, "TCP reassemble Hex", s_raw)
+                    wx.CallAfter(self.CreateNewTab, self.notebook2, "TCP reassemble UTF-8", s_utf8)
+                    wx.CallAfter(self.CreateNewTab, self.notebook2, "TCP reassemble GB2312", s_gb)
+                    
+                wx.CallAfter(self.reassembly.Show)
+
+
+        if (final_ip_seq != "" and len(final_ip_seq) != 1):  # Satisify IP reassembly
+            if (final_ip_seq == 'Too large to assemble'):  # Too big for memory
+
+                wx.CallAfter(self.CreateNewTab, self.notebook2, "IP reassemble failed", final_ip_seq)
+
+            else:
+                self.reassemble_size=0
+                s = "No. " + str(val) + " can be IP assembled by "
+                for i in final_ip_seq:
+                    s = s + "No. " + str(i[0]) + ", "
+                s = s[:-2] + "\n" + "After reassembly:" + "\n" + "\n"
+                s_gb = s_utf8 = s_raw = ""
+                for i in final_ip_seq:
+                    s_raw = s_raw + share.list_packet[i[0]].packet_to_load_plain()
+                    s_gb = s_gb + share.list_packet[i[0]].packet_to_load_gb()
+                    s_utf8 = s_utf8 + share.list_packet[i[0]].packet_to_load_utf8()
+                    try:
+                        self.reassemble_size+=len(share.list_packet[i[0]].load)
+                    except AttributeError:
+                        pass
+                self.bytes_array = s_utf8
+                self.size_label.SetLabel("Total Size: "+str(self.reassemble_size)+"B")
+                q = ""
+                q = q + "".join(packet_align(s_raw))
+                s_gb = s + "\n" + "Decoded by GB2312:" + "\n" + s_gb
+                s_utf8 = s + "\n" + "Decoded by UTF8:" + "\n" + s_utf8
+                s_raw = s + "Raw bytes:" + "\n" + q
+                wx.CallAfter(self.CreateNewTab, self.notebook2, "IP reassemble Hex", s_raw)
+                wx.CallAfter(self.CreateNewTab, self.notebook2, "IP reassemble UTF-8", s_utf8)
+                wx.CallAfter(self.CreateNewTab, self.notebook2, "IP reassemble GB2312", s_gb)
+                wx.CallAfter(self.reassembly.Show)
+                
+
+        try:
+            self.panel_3.Thaw()
+        except:
+            pass
+
+    #the following functions are event funtions bound to certain actions
+    def EvtStart(self, event):
+        """The event for clicking the Start/Stop button, which is to start/stop the progress"""
+        global flag_dict
+        if (flag_dict['iface'] == ""):
+            dlg = wx.MessageDialog(None, u"You have to choose a network interface", u"Fatal Error")
+            if dlg.ShowModal() == wx.ID_YES:
+                dlg.Destroy()
+        else:
+            flag_dict['start'] = not flag_dict['start']
+            if (flag_dict['start']):
+                self.button.SetLabel('Stop')
+                sleep(1)
+                if (flag_dict['error']==True):
+                    flag_dict['start']=False
+                    flag_dict['error'] = False
+                    dlg = wx.MessageDialog(None, u"Filter is not right. Please rewrite!", u"Fatal Error")
+                    self.button.SetLabel('Start')
+                    if dlg.ShowModal() == wx.ID_YES:
+                        dlg.Destroy()
+                    
+            else:
+                self.button.SetLabel('Start')
     def EvtClose(self, event):
         """The event for closing the GUI, which is to terminate everthing involved"""
         global flag_dict
@@ -392,47 +560,9 @@ class GUI(wx.Frame):
                             '\n' + share.list_packet[i].show(dump=True) + '\n')
                 f.close()
                 # open the file as soon as the progress of saving is finished
-                os.system(filename)
-
-    def EvtStart(self, event):
-        """The event for clicking the Start/Stop button, which is to start/stop the progress"""
-        global flag_dict
-        if (flag_dict['iface'] == ""):
-            dlg = wx.MessageDialog(None, u"You have to choose a network interface", u"Fatal Error")
-            if dlg.ShowModal() == wx.ID_YES:
-                dlg.Destroy()
-        else:
-            flag_dict['start'] = not flag_dict['start']
-            if (flag_dict['start']):
-                self.button.SetLabel('Stop')
-                sleep(1)
-                if (flag_dict['error']==True):
-                    flag_dict['start']=False
-                    flag_dict['error'] = False
-                    dlg = wx.MessageDialog(None, u"Filter is not right. Please rewrite!", u"Fatal Error")
-                    self.button.SetLabel('Start')
-                    if dlg.ShowModal() == wx.ID_YES:
-                        dlg.Destroy()
-                    
-            else:
-                self.button.SetLabel('Start')
-        #When it's stopped and chosen max mode, additional thread is open to show quick info on mouse movement
-        if (flag_dict['start']==False and len(share.list_byte)>0 and flag_dict["max"]==True):
-            t=Thread(target=self.CurrentPktToInfo)
-            t.start()
-            
-    def CurrentPktToInfo(self):
-        """Convert all current packets existed to WireShark type info"""
-        a=pyshark.InMemCapture(only_summaries=True)
-        share.list_info=a.parse_packets(share.list_byte)
-        #a.close()
-
-        for proc in psutil.process_iter():
-            # check whether the process name matches
-            if proc.name() == "dumpcap.exe":
-                proc.kill()
-        
-        
+                t=Thread(target=self.OpenFile,args=(filename,))
+                t.start()
+   
     def EvtReassemble(self, event):
         """The event for clicking the Reassembly button, which is to save the whole packets' load information into a file
            Only support TCP reassembly(especially for ftp) and HTTP reassembly(get the whole html)"""
@@ -549,185 +679,30 @@ class GUI(wx.Frame):
         self.save.Show()
         share.flag_cancel = True
 
-    def CreateNewTab(self, notebook, title, content):
-        """Create a new tab when the notebook and content is given"""
-        bsizer = wx.BoxSizer()
-        page = wx.Panel(notebook)
-        notebook.AddPage(page, title)
-        try:
-            text = wx.TextCtrl(page, -1, content, style=wx.TE_MULTILINE | wx.BORDER_NONE | wx.TE_READONLY)
-        except:
-            text = wx.TextCtrl(page, -1, "UnicodeDecodeError: 'utf-8' codec can't decode this information",
-                               style=wx.TE_MULTILINE | wx.BORDER_NONE | wx.TE_READONLY)
-        text.SetFont(self.font_10)
-        bsizer.Add(text, 1, wx.EXPAND)
-        page.SetSizerAndFit(bsizer)
-
-    def Choosing(self, val):
-        """Create a new tab when the notebook and content is given"""
-        #clear the size label 
-        self.size_label.SetLabel("")
-        # freeze the panel_2,panel_# for processing
-        self.panel_2.Freeze()
-        self.panel_3.Freeze()
-
-        # not cancel a row
-        share.flag_cancel = False
-
-        # clear all remaining tabs
-        try:
-
-            while (self.notebook2.GetPageCount()):
-                self.notebook2.DeletePage(0)
-            while (self.notebook1.GetPageCount()):
-                self.notebook1.DeletePage(0)
-        except:
-            pass
-
-        share.flag_select = True  # select a row
-        layerlist = share.list_packet[val].packet_to_layerlist()
-        final_tcp_seq = ""
-        final_ip_seq = ""
-
-        for i in layerlist:
-            # notebook1 with detailed info for single packet
-            s = ""
-            s = s + "No. " + str(val) + "\n" + i[0] + "\n"
-            for key in i[1]:
-                s = s + "%-10s%s\n" % ((key[0].upper()+key[1:]+":"), i[1][key])
-            wx.CallAfter(self.CreateNewTab, self.notebook1, i[0], s)
-        wx.CallAfter(self.CreateNewTab, self.notebook1, "Whole in hex", share.list_packet[val].hexdump())
-        try:
-            if (share.list_packet[val].load):
-                wx.CallAfter(self.CreateNewTab, self.notebook1, "Load in utf-8", share.list_packet[val].packet_to_load_utf8())
-                wx.CallAfter(self.CreateNewTab, self.notebook1, "Load in GB2312", share.list_packet[val].packet_to_load_gb())
-        except:
-            pass
-
-        try:
-            self.panel_2.Thaw()
-        except:
-            pass
-
-        for i in layerlist:
-            # detect IP/TCP reassembly
-            if "IP" in i:
-                if i[1]["flags"] != 2:
-                    (ip_src, ip_dst, ip_id) = (i[1]["src"], i[1]["dst"],
-                                               i[1]["id"])
-                    try:
-                        final_ip_seq = share.ip_seq[(ip_src, ip_dst, ip_id)]
-                    except:
-                        final_ip_seq = 'Too large to assemble'
-
-            if "TCP" in i:
+    def EvtMouseOnRow(self, event):
+        """When mouse is on one of the packets, the event is to show WireShark style Info"""
+        global list_info
+        global list_byte
+        if (flag_dict['start']==False):
+            x = event.GetX()
+            y = event.GetY()
+            index, flags = share.result_row.HitTest((x, y))
+            if (index>=0):
                 try:
-                    final_tcp_seq = packet_tcp_seq(i[1]["seq"])
+                    if (share.flag_search==True):
+                        share.result_row.SetToolTip(list_info[share.dict_search[index]].info)
+                    else:
+                        share.result_row.SetToolTip(list_info[index].info)
                 except:
-                    final_tcp_seq = 'Too large to assemble'
-                final_tcp_seq = packet_tcp_seq(i[1]["seq"])
-        if (final_tcp_seq != ""):  # Satisify TCP reassembly
-            self.processing = wx.StaticText(self.panel_4, label='Processing.....................', size=(1000, 40))
-            self.processing.SetFont(self.font_12)
-            if (final_tcp_seq == 'Too large to assemble'):  # Too big for memory
-                wx.CallAfter(self.CreateNewTab, self.notebook2, "TCP reassemble failed", final_tcp_seq)
+                    share.result_row.SetToolTip("wait for processing!")
 
-            else:
-                s = "No. " + str(val) + " can be TCP assembled by "
-                for i in final_tcp_seq:
-                    s = s + "No. " + str(i[1][0]) + ", "
-                s = s[:-2] + "\n" + "After reassembly:" + "\n" + "\n"
-                s_gb = s_utf8 = s_raw = ""
-                try:
-                    first_index = final_tcp_seq[0][1][0]
-                    content = b''
-                    for i in final_tcp_seq:
-                        content += share.list_packet[i[1][0]].load
-                    response = response_from_bytes(content)
-                    h = ""
-                    for i in response.headers:
-                        h += str(i) + " : " + str(response.headers[i]) + "\n"
-                    s = b"No. " + bytes(str(val), 'utf8') + b" can be HTTP assembled by "
-                    for i in final_tcp_seq:
-                        s = s + b"No. " + bytes(str(i[1][0]), 'utf8') + b", "
-                    s = s[:-2] + b"\n" + b"After reassembly:" + b"\n" + b"\n"
-                    try:
-                        content = response.data
-                    except:
-                        pass
-                    self.bytes_array = content
-                    h = "HTTP Header in No. " + str(first_index) + '\n' + h
+    def EvtMouseOnMax(self, event):
+        """When mouse cursor on max checkbox, instructions occurs."""
+        tip = wx.adv.RichToolTip("MAX MODE","Using addtional process to sniff\nExtremely reduce packet loss.\nBut is highly CPU-consuming.")
+        tip.SetTitleFont(self.SetCustomFont(12))
+        tip.ShowFor(self.max)    
 
-                    wx.CallAfter(self.CreateNewTab, self.notebook2, "HTTP HEADER", h)
-                    wx.CallAfter(self.CreateNewTab, self.notebook2, "HTTP CONTENT", s + content)
-                except:
-                    self.reassemble_size=0
-                    self.bytes_array = b""
-                    for i in final_tcp_seq:
-                        try:
-                            self.bytes_array += share.list_packet[i[1][0]].load
-                        except:
-                            pass
-
-                        s_raw = s_raw + share.list_packet[i[1][0]].packet_to_load_plain()
-                        if (i[1][1] != 0):
-                            self.reassemble_size+=len(share.list_packet[i[1][0]].load)
-                            s_gb = s_gb + share.list_packet[i[1][0]].packet_to_load_gb()
-                            s_utf8 = s_utf8 + share.list_packet[i[1][0]].packet_to_load_utf8()
-                    self.size_label.SetLabel("Total Size: "+str(self.reassemble_size)+"B")
-                    self.panel_3.Thaw()
-                    self.panel_3.Freeze()
-                    q = ""
-                    q = q + "".join(packet_align(s_raw))
-                    s_gb = s + "\n" + "Decoded by GB2312:" + "\n" + s_gb
-                    s_utf8 = s + "\n" + "Decoded by UTF8:" + "\n" + s_utf8
-                    s_raw = s + "Raw bytes:" + "\n" + q
-                    wx.CallAfter(self.CreateNewTab, self.notebook2, "TCP reassemble Hex", s_raw)
-                    wx.CallAfter(self.CreateNewTab, self.notebook2, "TCP reassemble UTF-8", s_utf8)
-                    wx.CallAfter(self.CreateNewTab, self.notebook2, "TCP reassemble GB2312", s_gb)
-                    
-                wx.CallAfter(self.reassembly.Show)
-
-
-        if (final_ip_seq != "" and len(final_ip_seq) != 1):  # Satisify IP reassembly
-            if (final_ip_seq == 'Too large to assemble'):  # Too big for memory
-
-                wx.CallAfter(self.CreateNewTab, self.notebook2, "IP reassemble failed", final_ip_seq)
-
-            else:
-                self.reassemble_size=0
-                s = "No. " + str(val) + " can be IP assembled by "
-                for i in final_ip_seq:
-                    s = s + "No. " + str(i[0]) + ", "
-                s = s[:-2] + "\n" + "After reassembly:" + "\n" + "\n"
-                s_gb = s_utf8 = s_raw = ""
-                for i in final_ip_seq:
-                    s_raw = s_raw + share.list_packet[i[0]].packet_to_load_plain()
-                    s_gb = s_gb + share.list_packet[i[0]].packet_to_load_gb()
-                    s_utf8 = s_utf8 + share.list_packet[i[0]].packet_to_load_utf8()
-                    try:
-                        self.reassemble_size+=len(share.list_packet[i[0]].load)
-                    except AttributeError:
-                        pass
-                self.bytes_array = s_utf8
-                self.size_label.SetLabel("Total Size: "+str(self.reassemble_size)+"B")
-                q = ""
-                q = q + "".join(packet_align(s_raw))
-                s_gb = s + "\n" + "Decoded by GB2312:" + "\n" + s_gb
-                s_utf8 = s + "\n" + "Decoded by UTF8:" + "\n" + s_utf8
-                s_raw = s + "Raw bytes:" + "\n" + q
-                wx.CallAfter(self.CreateNewTab, self.notebook2, "IP reassemble Hex", s_raw)
-                wx.CallAfter(self.CreateNewTab, self.notebook2, "IP reassemble UTF-8", s_utf8)
-                wx.CallAfter(self.CreateNewTab, self.notebook2, "IP reassemble GB2312", s_gb)
-                wx.CallAfter(self.reassembly.Show)
-                
-
-        try:
-            self.panel_3.Thaw()
-        except:
-            pass
-        
-
+"""The following fuctions are dedicated processes in the backend"""
 def InfiniteProcess(flag_dict, pkt_lst):
     """The dedicated process to sniff, which is to get the iface and filter and then starting sniffing"""
     while (flag_dict['close'] == False):
@@ -770,8 +745,41 @@ def InfiniteProcess(flag_dict, pkt_lst):
                 #flag_dict['error']= True
                 #continue
                 
+def CurrentPktToInfo(list_byte,list_info,flag_dict):
+    """Convert all current packets existed to WireShark type info"""
+    index=0
+    while (True):
+        if(flag_dict["start"]==False and len(list_byte)>0):
+            a=pyshark.InMemCapture(only_summaries=True)
+            for proc in psutil.process_iter():
+                # check whether the process name matches
+                if (proc.name() == "dumpcap.exe" or proc.name() == "tshark.exe"):
+                    proc.kill()
+            
+            t=a.parse_packets(list_byte[index:])
+            for i in t:
+                list_info.append(i)
+            index=len(list_info)
+            a.close()
+            for proc in psutil.process_iter():
+                # check whether the process name matches
+                if (proc.name() == "dumpcap.exe" or proc.name() == "tshark.exe"):
+                    proc.kill()
+            while(flag_dict["start"]==False):
+                sleep(1)
+        sleep(1)
+    #a.set_debug()
+    
+        
+    #a.close()
+
+    for proc in psutil.process_iter():
+        # check whether the process name matches
+        if proc.name() == "dumpcap.exe":
+            proc.kill()
 
 
+"""The following fuctions are dedicated threads in the backend"""
 def process():
     """The dedicated thread to process raw packet, which is to process each raw packet and make it display in the Listctrl"""
     num = 0
@@ -782,8 +790,7 @@ def process():
 
         except:
             continue
-        share.list_byte.append(p[0])
-        #print (share.list_byte)
+        list_byte.append(p[0])
         packet = Ether(p[0])
         packet.time = p[1]
         packet.num = num
@@ -822,7 +829,6 @@ def process():
                     share.ip_seq[(packet.packet[IP].src, packet.packet[IP].dst,
                                   packet.packet[IP].id)] = [(packet.num, packet.packet[IP].flags,
                                                              packet.packet[IP].frag)]
-
 
 def networkspeed():
     """The dedicated thread to show network speed, which is to display upload/download speed every second.
@@ -917,7 +923,11 @@ if __name__ == "__main__":
     p = Process(target=InfiniteProcess, name="InfiniteProcess", args=(flag_dict, pkt_lst))
     p.daemon = True
     p.start()
-    
+    list_byte=manager.list()
+    list_info=manager.list()
+    p = Process(target=CurrentPktToInfo, name="CurrentPktToInfo", args=(list_byte,list_info,flag_dict))
+    p.daemon = True
+    p.start()
     finish = False
     process_list = [process, networkspeed]
     thread_list = []
