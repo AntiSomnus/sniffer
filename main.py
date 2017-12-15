@@ -846,7 +846,7 @@ def networkspeed():
         upload=psutil.net_io_counters(pernic=True)[macname][0]
         download=psutil.net_io_counters(pernic=True)[macname][1]
         up_down=(upload,download)
-        while (flag_dict['start']==True):
+        while 1:
             last_up_down = up_down
             upload=psutil.net_io_counters(pernic=True)[macname][0]
             download=psutil.net_io_counters(pernic=True)[macname][1]
