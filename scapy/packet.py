@@ -107,7 +107,6 @@ class Packet(BasePacket, metaclass = Packet_metaclass):
                         f = " (DF=1" + f
                 except Exception as e:
                     pass
-                    # print(e)
                 finally:
                     self.fields["flags"] = self.fields["flags"] + f
         if self.name == "TCP":
@@ -138,46 +137,8 @@ class Packet(BasePacket, metaclass = Packet_metaclass):
                         f = ", CWR" + f
                     if flags[-9] == "1":
                         f = ", NS" + f
-                    # if flags[-1] == "0":
-                        # f = ", FIN=0" + f
-                    # elif flags[-1] == "1":
-                        # f = ", FIN=1" + f
-                    # if flags[-2] == "0":
-                        # f = ", SYN=0" + f
-                    # elif flags[-2] == "1":
-                        # f = ", SYN=1" + f
-                    # if flags[-3] == "0":
-                        # f = ", RST=0" + f
-                    # elif flags[-3] == "1":
-                        # f = ", RST=1" + f
-                    # if flags[-4] == "0":
-                        # f = ", PSH=0" + f
-                    # elif flags[-4] == "1":
-                        # f = ", PSH=1" + f
-                    # if flags[-5] == "0":
-                        # f = ", ACK=0" + f
-                    # elif flags[-5] == "1":
-                        # f = ", ACK=1" + f
-                    # if flags[-6] == "0":
-                        # f = ", URG=0" + f
-                    # elif flags[-6] == "1":
-                        # f = ", URG=1" + f
-                    # if flags[-7] == "0":
-                        # f = ", ECE=0" + f
-                    # elif flags[-7] == "1":
-                        # f = ", ECE=1" + f
-                    # if flags[-8] == "0":
-                        # f = ", CWR=0" + f
-                    # elif flags[-8] == "1":
-                        # f = ", CWR=1" + f
-                    # if flags[-9] == "0":
-                        # f = ", NS=0" + f
-                    # elif flags[-9] == "1":
-                        # f = ", NS=1" + f
                 except Exception as e:
                     pass
-                    # print(e)
-                    # print(f)
                 finally:
                     self.fields["flags"] = self.fields["flags"] + " (" + f[2:] + ")"
 
@@ -193,6 +154,8 @@ class Packet(BasePacket, metaclass = Packet_metaclass):
 
     def do_init_fields(self, flist):
         for f in flist:
+            if f.name == "flags":
+                print(f.name, f.default)
             self.default_fields[f.name] = copy.deepcopy(f.default)
             self.fieldtype[f.name] = f
             if f.holds_packets:
