@@ -43,8 +43,6 @@ with open(os.devnull, 'w') as errf:
     """suppress all annoying warnings when loading scapy"""
     with redirect_stderr(errf):
         from scapy.all import *
-        import wx
-        import wx.adv
 
 """use pcap to capture in Windows"""
 conf.use_pcap = True
