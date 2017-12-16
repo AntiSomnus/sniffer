@@ -1,7 +1,7 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import QMainWindow, QApplication, QWidget, QAction, QTableWidget,QTableWidgetItem,QVBoxLayout,QTabWidget,QProgressBar,QFileDialog
 from PyQt5.QtGui import QIcon,QFont
-from PyQt5.QtCore import pyqtSlot,QThread,Qt
+from PyQt5.QtCore import pyqtSlot,QThread,Qt,pyqtSignal
 from PyQt5.QtWidgets import (QWidget, QHBoxLayout, QFrame, 
     QSplitter, QStyleFactory, QApplication)
 from PyQt5 import QtCore, QtGui, QtWidgets
@@ -134,6 +134,9 @@ class Ui_MainWindow(object):
         font.setWeight(75)
         self.label_NIC.setFont(font)
         self.label_NIC.setObjectName("label")
+        
+        
+
         self.comboBox = QtWidgets.QComboBox(self.centralwidget)
         self.comboBox.setGeometry(QtCore.QRect(80, 10, 681, 31))
         font = QtGui.QFont()
@@ -289,6 +292,12 @@ class Ui_MainWindow(object):
         self.tableWidget.cellEntered.connect(self.handleItemEntered)
         self.tableWidget.verticalHeader().setVisible(False)
 
+
+        self.th=NewThread()
+        self.th.AddPacket.connect(self.ppp)
+        self.th.Scroll.connect(self.ScrollToEnd)
+        self.th.start()
+
         """tab1"""
         self.tabWidget = QtWidgets.QTabWidget(self.centralwidget)
         self.tabWidget.setMinimumHeight(50)
@@ -331,7 +340,14 @@ class Ui_MainWindow(object):
         self.retranslateUi(MainWindow)
 
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
-
+    def ScrollToEnd(self,l):
+        self.tableWidget.scrollToBottom()
+    def ppp(self,l):
+        num=l[-1]
+        self.tableWidget.insertRow(num)
+        for i in range(6):
+            item= QTableWidgetItem(l[i])
+            self.tableWidget.setItem(num,i, item)
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
@@ -613,6 +629,7 @@ class Ui_MainWindow(object):
             
     def cancel(self):
         share.flag_cancel = True
+'''
 def process():
     """The dedicated thread to process raw packet, which is to process each raw packet and make it display in the Listctrl"""
     num = 0
@@ -665,7 +682,7 @@ def process():
                     share.ip_seq[(packet.packet[IP].src, packet.packet[IP].dst,
                                   packet.packet[IP].id)] = [(packet.num, packet.packet[IP].flags,
                                                              packet.packet[IP].frag)]
-
+'''
 
 def InfiniteProcess(flag_dict, pkt_lst):
     """The dedicated process to sniff, which is to get the iface and filter and then starting sniffing"""
@@ -704,6 +721,70 @@ def InfiniteProcess(flag_dict, pkt_lst):
                     flag_dict=flag_dict,
                     stopperTimeout=0.2,
                 )
+class NewThread(QThread):
+    AddPacket = pyqtSignal(list)
+    Scroll    = pyqtSignal(str)
+    def __init__(self, parent=None):
+        QThread.__init__(self, parent=parent)
+        self.isRunning = True
+
+    def run(self):
+        """The dedicated thread to process raw packet, which is to process each raw packet and make it display in the Listctrl"""
+        num = 0
+        global pkt_lst
+        while self.isRunning:
+            try:
+                p = pkt_lst.get()
+
+            except:
+                continue
+            list_byte.append(p[0])
+            packet = Ether(p[0])
+            packet.time = p[1]
+            packet.num = num
+            packet = Packet_r(packet)
+            share.list_packet.append(packet)
+            if (share.flag_search == False):
+                l=packet.packet_to_info()
+                l.append(num)
+                self.AddPacket.emit(l)
+            share.list_tmp.append(packet.packet_to_info())
+            num += 1
+            if ((share.flag_select == False and share.flag_search == False)
+                    or (share.flag_select == True and share.flag_cancel == True
+                        and share.flag_search == False)):
+                # make the scroll bar update
+                self.Scroll.emit("True")
+                #ex.tableWidget.scrollToBottom()
+            # possible preprocess for TCP reassembly
+            if packet.haslayer(TCP):
+                seq = packet.packet[TCP].seq
+                if hasattr(packet.packet[TCP], "load"):
+                    seqlen = len(packet.packet[TCP].load)
+                else:
+                    seqlen = 0
+                share.tcp_seq[seq] = (packet.num, seqlen)
+
+            # possible preprocess for IP reassembly
+            if packet.haslayer(IP):
+                if packet.packet[IP].flags != 2:
+                    if (packet.packet[IP].src, packet.packet[IP].dst,
+                            packet.packet[IP].id) in share.ip_seq.keys():
+                        share.ip_seq[(packet.packet[IP].src, packet.packet[IP].dst,
+                                    packet.packet[IP].id)].append(
+                            (packet.num, packet.packet[IP].flags,
+                            packet.packet[IP].frag))
+                    else:
+                        share.ip_seq[(packet.packet[IP].src, packet.packet[IP].dst,
+                                    packet.packet[IP].id)] = [(packet.num, packet.packet[IP].flags,
+                                                                packet.packet[IP].frag)]
+
+
+    def stop(self):
+        self.isRunning = False
+        self.quit()
+        self.wait()
+
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     share = VAR()
@@ -747,15 +828,17 @@ if __name__ == "__main__":
     p.daemon = True
     p.start()
     flag_dict["select"]=False
-    finish = False
+    '''finish = False
     process_list = [process]
-    thread_list = []
+    thread_list = []'''
     w = QtWidgets.QMainWindow()
     ex = Ui_MainWindow()
+    '''
     for i in range(len(process_list)):
         thread_list.append(Thread(target=process_list[i]))
         thread_list[i].setDaemon(1)
         thread_list[i].start()
+    '''
     
     
     ex.setupUi(w)
