@@ -1,9 +1,11 @@
+
+import psutil
+import re
 class VAR():
     """Class for shared variables in multipule threads of main process"""
     def __init__(self):
 
-        self.interfaces = []    #
-        self.fo = ''
+        self.interfaces = []    #network interface list
 
         # False: Window not closed;
         # True: Window is closed
@@ -19,6 +21,8 @@ class VAR():
 
         self.list_packet = []               # each original packet
         self.list_tmp = []
+        self.list_byte =[]                  # each original packet with bytes
+        self.list_info =[]                  # each original packet converted to wireshark type info 
         self.result_row = ''                # the row shown in widget listctrl
 
         self.tcp_seq = {}  # dictionary for tcp reassmebly
@@ -31,4 +35,8 @@ class VAR():
         self.mac_dict = {}
         self.mac = ''
         self.dict_time = {}  # capture time dict  packet:time
-
+        self.dict_search={}  # {after search:before search}
+        self.dict_mac2name={} #mac:name of mac
+        for i in psutil.net_if_addrs():
+            a=re.sub(r'\W+', '', psutil.net_if_addrs()[i][0].address.lower())
+            self.dict_mac2name[a]=i

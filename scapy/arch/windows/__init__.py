@@ -7,11 +7,16 @@
 Customizations needed to support Microsoft Windows.
 """
 
-import os,re,sys,socket,time, itertools
+import os
+import re
+import sys
+import socket
+import time
+import itertools
 import subprocess as sp
 from glob import glob
-from scapy.config import conf,ConfClass
-from scapy.error import Scapy_Exception,log_loading,log_runtime
+from scapy.config import conf, ConfClass
+from scapy.error import Scapy_Exception, log_loading, log_runtime
 from scapy.utils import atol, itom, inet_aton, inet_ntoa, PcapReader
 from scapy.base_classes import Gen, Net, SetGen
 import scapy.plist as plist
@@ -22,11 +27,11 @@ from datetime import datetime
 conf.use_winpcapy = True
 from scapy.arch import pcapdnet
 from scapy.arch.pcapdnet import *
-global lst
-lst=[]
+from multiprocessing import Manager, Process
+lst = []
 global length
-length=0
-LOOPBACK_NAME="lo0"
+length = 0
+LOOPBACK_NAME = "lo0"
 WINDOWS = True
 
 
@@ -43,9 +48,10 @@ def _where(filename, dirs=[], env="PATH"):
                 return os.path.normpath(match)
     raise IOError("File not found: %s" % filename)
 
+
 def win_find_exe(filename, installsubdir=None, env="ProgramFiles"):
     """Find executable in current dir, system path or given ProgramFiles subdir"""
-    for fn in [filename, filename+".exe"]:
+    for fn in [filename, filename + ".exe"]:
         try:
             if installsubdir is None:
                 path = _where(fn)
@@ -54,14 +60,14 @@ def win_find_exe(filename, installsubdir=None, env="ProgramFiles"):
         except IOError:
             path = filename
         else:
-            break        
+            break
     return path
 
 
 class WinProgPath(ConfClass):
     _default = "<System default>"
     # We try some magic to find the appropriate executables
-    pdfreader = win_find_exe("AcroRd32") 
+    pdfreader = win_find_exe("AcroRd32")
     psreader = win_find_exe("gsview32.exe", "Ghostgum/gsview")
     dot = win_find_exe("dot", "ATT/Graphviz/bin")
     tcpdump = win_find_exe("windump")
@@ -70,23 +76,27 @@ class WinProgPath(ConfClass):
     hexedit = win_find_exe("hexer")
     wireshark = win_find_exe("wireshark", "wireshark")
 
+
 conf.prog = WinProgPath()
 
+
 class PcapNameNotFoundError(Scapy_Exception):
-    pass    
+    pass
+
 
 def get_windows_if_list():
     # Windows 8+ way: ps = sp.Popen(['powershell', 'Get-NetAdapter', '|', 'select Name, InterfaceIndex, InterfaceDescription, InterfaceGuid, MacAddress', '|', 'fl'], stdout = sp.PIPE, universal_newlines = True)
-    ps = sp.Popen(['powershell', '-NoProfile', 'Get-WMIObject -class Win32_NetworkAdapter', '|', 'select Name, @{Name="InterfaceIndex";Expression={$_.InterfaceIndex}}, @{Name="InterfaceDescription";Expression={$_.Description}},@{Name="InterfaceGuid";Expression={$_.GUID}}, @{Name="MacAddress";Expression={$_.MacAddress.Replace(":","-")}} | where InterfaceGuid -ne $null', '|', 'fl'], stdout = sp.PIPE, universal_newlines = True)
-    stdout, stdin = ps.communicate(timeout = 10)
+    ps = sp.Popen(['powershell', '-NoProfile', 'Get-WMIObject -class Win32_NetworkAdapter', '|',
+                   'select Name, @{Name="InterfaceIndex";Expression={$_.InterfaceIndex}}, @{Name="InterfaceDescription";Expression={$_.Description}},@{Name="InterfaceGuid";Expression={$_.GUID}}, @{Name="MacAddress";Expression={$_.MacAddress.Replace(":","-")}} | where InterfaceGuid -ne $null', '|', 'fl'], stdout=sp.PIPE, universal_newlines=True)
+    stdout, stdin = ps.communicate(timeout=10)
     current_interface = None
     interface_list = []
     for i in stdout.split('\n'):
         if not i.strip():
             continue
-        if i.find(':')<0:
+        if i.find(':') < 0:
             continue
-        name, value = [ j.strip() for j in i.split(':') ]
+        name, value = [j.strip() for j in i.split(':')]
         if name == 'Name':
             if current_interface:
                 interface_list.append(current_interface)
@@ -99,15 +109,16 @@ def get_windows_if_list():
         elif name == 'InterfaceGuid':
             current_interface['guid'] = value
         elif name == 'MacAddress':
-            current_interface['mac'] = ':'.join([ j for j in value.split('-')])    
+            current_interface['mac'] = ':'.join([j for j in value.split('-')])
     if current_interface:
         interface_list.append(current_interface)
     interface_list.append({'name': LOOPBACK_NAME, 'win_index': 1, 'description': LOOPBACK_NAME, 'guid': '', 'mac': ''})
     return interface_list
 
+
 class NetworkInterface(object):
     """A network interface of your local host"""
-    
+
     def __init__(self, data=None):
         self.name = None
         self.ip = None
@@ -145,7 +156,7 @@ class NetworkInterface(object):
             self.mac = data['mac']
         except KeyError:
             pass
-    
+
     def _update_pcapdata(self):
         for i in winpcapy_get_if_list():
             if i.endswith(self.data['guid']):
@@ -153,15 +164,18 @@ class NetworkInterface(object):
                 return
 
         raise PcapNameNotFoundError
-    
+
     def __repr__(self):
         return "<%s: %s %s %s pcap_name=%s description=%s>" % (self.__class__.__name__,
-                     self.name, self.ip, self.mac, self.pcap_name, self.description)
+                                                               self.name, self.ip, self.mac, self.pcap_name, self.description)
+
 
 from collections import UserDict
 
+
 class NetworkInterfaceDict(UserDict):
-    """Store information about network interfaces and convert between names""" 
+    """Store information about network interfaces and convert between names"""
+
     def load_from_powershell(self):
         for i in get_windows_if_list():
             try:
@@ -174,7 +188,7 @@ class NetworkInterfaceDict(UserDict):
                                 "You probably won't be able to send packets. "
                                 "Deactivating unneeded interfaces and restarting Scapy might help."
                                 "Check your winpcap and powershell installation, and access rights.")
-    
+
     def pcap_name(self, devname):
         """Return pcap device name for given Windows device name."""
 
@@ -184,15 +198,15 @@ class NetworkInterfaceDict(UserDict):
             raise ValueError("Unknown network interface %r" % devname)
         else:
             return pcap_name
-            
+
     def devname(self, pcap_name):
         """Return Windows device name for given pcap device name."""
-        
+
         for devname, iface in self.items():
             if iface.pcap_name == pcap_name:
                 return iface.name
         raise ValueError("Unknown pypcap network interface %r" % pcap_name)
-    
+
     def devname_from_index(self, if_index):
         """Return interface name from interface index"""
         for devname, iface in self.items():
@@ -209,41 +223,48 @@ class NetworkInterfaceDict(UserDict):
             mac = dev.mac
             if resolve_mac and iface_name != LOOPBACK_NAME:
                 mac = conf.manufdb._resolve_MAC(mac)
-            print("%s  %s  %s  %s" % (str(dev.win_index).ljust(5), str(dev.name).ljust(35), str(dev.ip).ljust(15), mac)     )
-            
+            print("%s  %s  %s  %s" % (str(dev.win_index).ljust(5), str(dev.name).ljust(35), str(dev.ip).ljust(15), mac))
+
+
 ifaces = NetworkInterfaceDict()
 ifaces.load_from_powershell()
 
+
 def pcap_name(devname):
-    """Return pypcap device name for given libdnet/Scapy device name"""  
+    """Return pypcap device name for given libdnet/Scapy device name"""
     try:
         pcap_name = ifaces.pcap_name(devname)
     except ValueError:
         # pcap.pcap() will choose a sensible default for sniffing if iface=None
         pcap_name = None
-    return pcap_name            
+    return pcap_name
+
 
 def devname(pcap_name):
     """Return libdnet/Scapy device name for given pypcap device name"""
     return ifaces.devname(pcap_name)
 
+
 def devname_from_index(if_index):
     """Return Windows adapter name for given Windows interface index"""
     return ifaces.devname_from_index(if_index)
-    
+
+
 def show_interfaces(resolve_mac=True):
     """Print list of available network interfaces"""
     return ifaces.show(resolve_mac)
 
+
 try:
     _orig_open_pcap = pcapdnet.open_pcap
-    pcapdnet.open_pcap = lambda iface,*args,**kargs: _orig_open_pcap(pcap_name(iface),*args,**kargs)
+    pcapdnet.open_pcap = lambda iface, *args, **kargs: _orig_open_pcap(pcap_name(iface), *args, **kargs)
 except AttributeError:
     pass
 
 _orig_get_if_raw_hwaddr = pcapdnet.get_if_raw_hwaddr
-pcapdnet.get_if_raw_hwaddr = lambda iface,*args,**kargs: [ int(i, 16) for i in ifaces[iface].mac.split(':') ]
+pcapdnet.get_if_raw_hwaddr = lambda iface, *args, **kargs: [int(i, 16) for i in ifaces[iface].mac.split(':')]
 get_if_raw_hwaddr = pcapdnet.get_if_raw_hwaddr
+
 
 def read_routes():
     routes = []
@@ -259,10 +280,10 @@ def read_routes():
     # format, as powershell will change from table to line based format when it has to print more than 4 columns
     ps = sp.Popen(['powershell', 'Get-WMIObject', 'Win32_IP4RouteTable', '|',
                    'select InterfaceIndex, Destination, Mask, NextHop, Metric1', '|', 'ft'],
-                  stdout = sp.PIPE, universal_newlines = True)
-    stdout, stdin = ps.communicate(timeout = 10)
+                  stdout=sp.PIPE, universal_newlines=True)
+    stdout, stdin = ps.communicate(timeout=10)
     for l in stdout.split('\n'):
-        match = re.search(pattern,l)
+        match = re.search(pattern, l)
         if match:
             try:
                 iface = devname_from_index(int(match.group(1)))
@@ -270,18 +291,20 @@ def read_routes():
             except:
                 continue
             dest = atol(match.group(2))
-            mask = itom(sum([len(bin(int(a)).replace("0", ""))-1 for a in match.group(3).split(".")]))
+            mask = itom(sum([len(bin(int(a)).replace("0", "")) - 1 for a in match.group(3).split(".")]))
             gw = match.group(4)
             # try:
             #     intf = pcapdnet.dnet.intf().get_dst(pcapdnet.dnet.addr(type=2, addrtxt=dest))
             # except OSError:
             #     log_loading.warning("Building Scapy's routing table: Couldn't get outgoing interface for destination %s" % dest)
-            #     continue               
+            #     continue
             routes.append((dest, mask, gw, iface, addr))
     return routes
 
+
 def read_routes6():
     return []
+
 
 if conf.interactive_shell != 'ipython':
     try:
@@ -291,28 +314,29 @@ if conf.interactive_shell != 'ipython':
             import readline
             console = readline.GetOutputFile()
         except (ImportError, AttributeError):
-            log_loading.info("Could not get readline console. Will not interpret ANSI color codes.") 
+            log_loading.info("Could not get readline console. Will not interpret ANSI color codes.")
         else:
             conf.readfunc = readline.rl.readline
             orig_stdout = sys.stdout
             sys.stdout = console
 
-def sndrcv(pks, pkt, timeout = 2, inter = 0, verbose=None, chainCC=0, retry=0, multi=0):
+
+def sndrcv(pks, pkt, timeout=2, inter=0, verbose=None, chainCC=0, retry=0, multi=0):
     if not isinstance(pkt, Gen):
         pkt = SetGen(pkt)
-        
+
     if verbose is None:
         verbose = conf.verb
-    debug.recv = plist.PacketList([],"Unanswered")
-    debug.sent = plist.PacketList([],"Sent")
+    debug.recv = plist.PacketList([], "Unanswered")
+    debug.sent = plist.PacketList([], "Sent")
     debug.match = plist.SndRcvList([])
-    nbrecv=0
+    nbrecv = 0
     ans = []
     # do it here to fix random fields, so that parent and child have the same
     all_stimuli = tobesent = [p for p in pkt]
     notans = len(tobesent)
 
-    hsent={}
+    hsent = {}
     for i in tobesent:
         h = i.hashret()
         if h in hsent:
@@ -321,18 +345,17 @@ def sndrcv(pks, pkt, timeout = 2, inter = 0, verbose=None, chainCC=0, retry=0, m
             hsent[h] = [i]
     if retry < 0:
         retry = -retry
-        autostop=retry
+        autostop = retry
     else:
-        autostop=0
-
+        autostop = 0
 
     while retry >= 0:
-        found=0
-    
+        found = 0
+
         if timeout < 0:
             timeout = None
 
-        pid=1
+        pid = 1
         try:
             if WINDOWS or pid == 0:
                 try:
@@ -359,9 +382,9 @@ def sndrcv(pks, pkt, timeout = 2, inter = 0, verbose=None, chainCC=0, retry=0, m
                     except:
                         pass
             if WINDOWS or pid > 0:
-                # Timeout starts after last packet is sent (as in Unix version) 
+                # Timeout starts after last packet is sent (as in Unix version)
                 if timeout:
-                    stoptime = time.time()+timeout
+                    stoptime = time.time() + timeout
                 else:
                     stoptime = 0
                 remaintime = None
@@ -370,7 +393,7 @@ def sndrcv(pks, pkt, timeout = 2, inter = 0, verbose=None, chainCC=0, retry=0, m
                     try:
                         while 1:
                             if stoptime:
-                                remaintime = stoptime-time.time()
+                                remaintime = stoptime - time.time()
                                 if remaintime <= 0:
                                     break
                             r = pks.recv(MTU)
@@ -382,17 +405,17 @@ def sndrcv(pks, pkt, timeout = 2, inter = 0, verbose=None, chainCC=0, retry=0, m
                                 hlst = hsent[h]
                                 for i in range(len(hlst)):
                                     if r.answers(hlst[i]):
-                                        ans.append((hlst[i],r))
+                                        ans.append((hlst[i], r))
                                         if verbose > 1:
                                             os.write(1, b"*")
-                                        ok = 1                                
+                                        ok = 1
                                         if not multi:
                                             del(hlst[i])
-                                            notans -= 1;
+                                            notans -= 1
                                         else:
                                             if not hasattr(hlst[i], '_answered'):
-                                                notans -= 1;
-                                            hlst[i]._answered = 1;
+                                                notans -= 1
+                                            hlst[i]._answered = 1
                                         break
                             if notans == 0 and not multi:
                                 break
@@ -407,47 +430,47 @@ def sndrcv(pks, pkt, timeout = 2, inter = 0, verbose=None, chainCC=0, retry=0, m
                             raise
                 finally:
                     if WINDOWS:
-                        for p,t in zip(all_stimuli, sent_times):
+                        for p, t in zip(all_stimuli, sent_times):
                             p.sent_time = t
         finally:
             pass
 
         # remain = reduce(list.__add__, hsent.values(), [])
-        remain = list(itertools.chain(*[ i for i in hsent.values() ]))
+        remain = list(itertools.chain(*[i for i in hsent.values()]))
 
         if multi:
             #remain = filter(lambda p: not hasattr(p, '_answered'), remain);
-            remain = [ p for p in remain if not hasattr(p, '_answered')]
-            
+            remain = [p for p in remain if not hasattr(p, '_answered')]
+
         if autostop and len(remain) > 0 and len(remain) != len(tobesent):
             retry = autostop
-            
+
         tobesent = remain
         if len(tobesent) == 0:
             break
         retry -= 1
-        
+
     if conf.debug_match:
-        debug.sent=plist.PacketList(remain[:],"Sent")
-        debug.match=plist.SndRcvList(ans[:])
+        debug.sent = plist.PacketList(remain[:], "Sent")
+        debug.match = plist.SndRcvList(ans[:])
 
     #clean the ans list to delete the field _answered
     if (multi):
-        for s,r in ans:
+        for s, r in ans:
             if hasattr(s, '_answered'):
                 del(s._answered)
-    
+
     if verbose:
-        print("\nReceived %i packets, got %i answers, remaining %i packets" % (nbrecv+len(ans), len(ans), notans))
-    return plist.SndRcvList(ans),plist.PacketList(remain,"Unanswered")
+        print("\nReceived %i packets, got %i answers, remaining %i packets" % (nbrecv + len(ans), len(ans), notans))
+    return plist.SndRcvList(ans), plist.PacketList(remain, "Unanswered")
 
 
 import scapy.sendrecv
 scapy.sendrecv.sndrcv = sndrcv
 
-# def sniff(count=0, store=1, offline=None, prn = None, lfilter=None, L2socket=None, timeout=None, stop_callback=None, *arg, **karg):
-def sniff(count=0, store=1, offline=None, prn = None, lfilter=None,
- L2socket=None, timeout=None, stopperTimeout=None, flag_dict = None,pkt_lst=pkt_lst, *arg, **karg):
+
+def sniff(count=0, store=1, offline=None, prn=None, lfilter=None,
+          L2socket=None, timeout=None, stopperTimeout=None, flag_dict=None, pkt_lst=pkt_lst, *arg, **karg):
     """Sniff packets
 sniff([count=0,] [prn=None,] [store=1,] [offline=None,] [lfilter=None,] + L2ListenSocket args) -> list of packets
 Select interface to sniff by setting conf.iface. Use show_interfaces() to see interface names.
@@ -465,40 +488,43 @@ L2socket: use the provided L2socket
 stop_callback: Call every loop to determine if we need
                to stop the capture
     """
+    mac = flag_dict['mac']
+    up = 0
+    down = 0
     c = 0
+    last_time = ''
     if offline is None:
         if L2socket is None:
             L2socket = conf.L2listen
         s = L2socket(type=ETH_P_ALL, *arg, **karg)
-        
+
     else:
         s = PcapReader(offline)
     global lst
     global length
     if timeout is not None:
-        stoptime = time.time()+timeout
+        stoptime = time.time() + timeout
     remain = None
 
     if stopperTimeout is not None:
-        stopperStoptime = time.time()+stopperTimeout
+        stopperStoptime = time.time() + stopperTimeout
     remainStopper = None
     if (flag_dict['max']):
         s.recv_pkt_lst_init()
         while 1:
             try:
                 if timeout is not None:
-                    remain = stoptime-time.time()
+                    remain = stoptime - time.time()
                     if remain <= 0:
                         break
 
                 if stopperTimeout is not None:
-                    remainStopper = stopperStoptime-time.time()
-                    if remainStopper <=0:
-                        if flag_dict['start']==False:
+                    remainStopper = stopperStoptime - time.time()
+                    if remainStopper <= 0:
+                        if flag_dict['start'] == False:
                             break
-                        stopperStoptime = time.time()+stopperTimeout
-                        remainStopper = stopperStoptime-time.time()
-
+                        stopperStoptime = time.time() + stopperTimeout
+                        remainStopper = stopperStoptime - time.time()
 
                 ll = s.ins.datalink()
                 if ll in conf.l2types:
@@ -506,14 +532,14 @@ stop_callback: Call every loop to determine if we need
                 else:
                     cls = conf.default_l2
                     warning("Unable to guess datalink type (interface=%s linktype=%i). Using %s" % (self.iface, ll, cls.name))
-                while (s.num_process>=s.num_capture):
-                    if(flag_dict['start']==False):
+                while (s.num_process >= s.num_capture):
+                    if(flag_dict['start'] == False):
                         return (None)
                     pass
-                pkt=s.pkt_lst[s.num_process]
+                pkt, t = s.pkt_lst[s.num_process][0], s.pkt_lst[s.num_process][1]
                 ts, pkt = pkt
-                        # if scapy.arch.WINDOWS and pkt is None:
-                            #raise PcapTimeoutElapsed
+                # if scapy.arch.WINDOWS and pkt is None:
+                #raise PcapTimeoutElapsed
 
                 try:
                     pkt = cls(pkt)
@@ -523,10 +549,9 @@ stop_callback: Call every loop to determine if we need
                     if conf.debug_dissector:
                         raise
                     pkt = conf.raw_layer(pkt)
-                pkt.time = ts
-                s.num_process+=1
-                p=pkt
-                length=s.num_process
+                s.num_process += 1
+                p = pkt
+                length = s.num_process
 
                 if p is None:
                     break
@@ -534,8 +559,7 @@ stop_callback: Call every loop to determine if we need
                     continue
                 if store:
                     lst.append(p)
-                pkt_lst.put([bytes(p),datetime.now().strftime("%H:%M:%S")])
-                #print (length,str(datetime.now()),bytes(p))
+                pkt_lst.put([bytes(p), t])
                 c += 1
                 if prn:
                     r = prn(p)
@@ -546,23 +570,22 @@ stop_callback: Call every loop to determine if we need
             except KeyboardInterrupt:
                 break
         s.close()
-        return plist.PacketList(lst,"Sniffed")
+        return plist.PacketList(lst, "Sniffed")
     else:
         while 1:
             try:
                 if timeout is not None:
-                    remain = stoptime-time.time()
+                    remain = stoptime - time.time()
                     if remain <= 0:
                         break
 
                 if stopperTimeout is not None:
-                    remainStopper = stopperStoptime-time.time()
-                    if remainStopper <=0:
-                        if flag_dict['start']==False:
+                    remainStopper = stopperStoptime - time.time()
+                    if remainStopper <= 0:
+                        if flag_dict['start'] == False:
                             break
-                        stopperStoptime = time.time()+stopperTimeout
-                        remainStopper = stopperStoptime-time.time()
-
+                        stopperStoptime = time.time() + stopperTimeout
+                        remainStopper = stopperStoptime - time.time()
 
                 try:
                     p = s.recv(MTU)
@@ -574,7 +597,7 @@ stop_callback: Call every loop to determine if we need
                     continue
                 if store:
                     lst.append(p)
-                pkt_lst.put([bytes(p),datetime.now().strftime("%H:%M:%S")])
+                pkt_lst.put([bytes(p), datetime.now().strftime("%H:%M:%S")])
                 #print (length,str(datetime.now()),bytes(p))
                 c += 1
                 if prn:
@@ -586,14 +609,16 @@ stop_callback: Call every loop to determine if we need
             except KeyboardInterrupt:
                 break
         s.close()
-        return plist.PacketList(lst,"Sniffed")
-        
+        return plist.PacketList(lst, "Sniffed")
+
+
 import scapy.sendrecv
 scapy.sendrecv.sniff = sniff
 
 # def get_if_list():
 #     print('windows if_list')
 #     return sorted(ifaces.keys())
+
 
 def get_working_if():
     try:
@@ -605,5 +630,6 @@ def get_working_if():
         else:
             log_runtime.exception("--- No interface found to send data on")
             return LOOPBACK_NAME
+
 
 conf.iface = get_working_if()
