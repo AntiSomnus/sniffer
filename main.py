@@ -1,3 +1,14 @@
+from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5.QtWidgets import QMainWindow, QApplication, QWidget, QAction, QTableWidget,QTableWidgetItem,QVBoxLayout,QTabWidget,QProgressBar,QFileDialog
+from PyQt5.QtGui import QIcon,QFont
+from PyQt5.QtCore import pyqtSlot,QThread,Qt,pyqtSignal
+from PyQt5.QtWidgets import (QWidget, QHBoxLayout, QFrame, 
+    QSplitter, QStyleFactory, QApplication)
+from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5.QtCore import Qt
+from threading import Thread
+import sys
+from time import sleep
 import logging
 logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
 import os
@@ -43,8 +54,6 @@ conf.use_pcap = True
 import psutil
 """ pyshark for get brief info"""
 import pyshark
-
-
 """The following fuctions are used to handle tcp reassembly"""
 def packet_tcp_seq(seq):
     """Return tcp reassembly result"""
@@ -106,279 +115,326 @@ def packet_align(s):
         s[n] = " ".join(s[n])
     return s
 
+class Ui_MainWindow(object):
+    def setupUi(self, MainWindow):
+        MainWindow.setObjectName("MainWindow")
+        MainWindow.resize(1000, 990)
+        self.centralwidget = QtWidgets.QWidget(MainWindow)
+        self.centralwidget.setObjectName("centralwidget")
+        MainWindow.setCentralWidget(self.centralwidget)
 
-class GUI(wx.Frame):
-    def __init__(self, parent, id, title, ifaces):
-        """Initiate the GUI interface using wxpython when the Internet Interface list is loaded"""
-        # load interface list
-        self.sample_list = ifaces
-        self.t = []  # initialize thread
-        # initiate the frame
-        wx.Frame.__init__(self, parent, id, title, size=(1000, 1030), style=wx.DEFAULT_FRAME_STYLE &
-                          ~wx.MAXIMIZE_BOX ^ wx.RESIZE_BORDER, pos=(100, 0))
-        # initiate the top panel
-        topPanel = wx.Panel(self)
+        """STATIC THING"""
+        self.label_NIC = QtWidgets.QLabel(self.centralwidget)
+        self.label_NIC.setGeometry(QtCore.QRect(20, -10, 81, 71))
 
-        # split the top panel into panel_1,panel_2_3,panel_4
-        # panel_1:the panel for setup sniffer and brief info of packets sniffed
-        self.panel_1 = wx.Panel(topPanel, -1, pos=(0, 0), size=(1000, 400))
+        font = QtGui.QFont()
+        font.setFamily("Courier New")
+        font.setPointSize(12)
+        font.setBold(True)
+        font.setWeight(75)
+        self.label_NIC.setFont(font)
+        self.label_NIC.setObjectName("label")
+        
+        
 
-        # panel_2_3:the splitable panel for panel_2 and panel_3
-        self.panel_2_3 = wx.Panel(topPanel, -1, pos=(0, 400), size=(1000, 540))
-        self.splitter = wx.SplitterWindow(self.panel_2_3)
+        self.comboBox = QtWidgets.QComboBox(self.centralwidget)
+        self.comboBox.setGeometry(QtCore.QRect(80, 10, 681, 31))
+        font = QtGui.QFont()
+        font.setFamily("Courier New")
+        font.setPointSize(12)
+        font.setBold(True)
+        font.setWeight(75)
+        self.comboBox.setFont(font)
+        self.comboBox.setObjectName("comboBox")
+        for i in share.interfaces:
+            self.comboBox.addItem(i)
+        self.comboBox.currentTextChanged.connect(self.EVT_COMBOBOX)
 
-        # panel_2:the panel for showing detailed info of results sniffed
-        self.panel_2 = wx.Panel(self.splitter, -1, size=(1000, 50))
 
-        # panel_3:the panel for showing reassembly(IP,TCP,HTTP) info of packets sniffed
-        self.panel_3 = wx.Panel(self.splitter, -1, size=(1000, 50))
-        self.splitter.SplitHorizontally(self.panel_2, self.panel_3)
-        self.splitter.SetMinimumPaneSize(50)
-        # panel_4:the panel for showing reassembly progress as well as button
-        self.panel_4 = wx.Panel(topPanel, -1, pos=(0, 940), size=(1000, 60))
+        self.label_2 = QtWidgets.QLabel(self.centralwidget)
+        self.label_2.setGeometry(QtCore.QRect(20, 30, 81, 71))
+        font = QtGui.QFont()
+        font.setFamily("Courier New")
+        font.setPointSize(12)
+        font.setBold(True)
+        font.setWeight(75)
+        self.label_2.setFont(font)
+        self.label_2.setObjectName("label_2")
+        self.label_3 = QtWidgets.QLabel(self.centralwidget)
+        self.label_3.setGeometry(QtCore.QRect(380, 30, 81, 71))
+        font = QtGui.QFont()
+        font.setFamily("Courier New")
+        font.setPointSize(12)
+        font.setBold(True)
+        font.setWeight(75)
+        self.label_3.setFont(font)
+        self.label_3.setObjectName("label_3")
+        self.label_4 = QtWidgets.QLabel(self.centralwidget)
+        self.label_4.setGeometry(QtCore.QRect(200, 90, 36, 23))
+        font = QtGui.QFont()
+        font.setFamily("Courier New")
+        font.setPointSize(12)
+        font.setBold(True)
+        font.setWeight(75)
+        self.label_4.setFont(font)
+        self.label_4.setText("")
+        self.label_4.setObjectName("label_4")
+        self.label_5 = QtWidgets.QLabel(self.centralwidget)
+        self.label_5.setGeometry(QtCore.QRect(590, 30, 81, 71))
+        font = QtGui.QFont()
+        font.setFamily("Courier New")
+        font.setPointSize(12)
+        font.setBold(True)
+        font.setWeight(75)
+        self.label_5.setFont(font)
+        self.label_5.setObjectName("label_5")
+        self.label_6 = QtWidgets.QLabel(self.centralwidget)
+        self.label_6.setGeometry(QtCore.QRect(770, 30, 81, 71))
+        font = QtGui.QFont()
+        font.setFamily("Courier New")
+        font.setPointSize(12)
+        font.setBold(True)
+        font.setWeight(75)
+        self.label_6.setFont(font)
+        self.label_6.setObjectName("label_6")
+        self.label_7 = QtWidgets.QLabel(self.centralwidget)
+        self.label_7.setGeometry(QtCore.QRect(210, 30, 41, 71))
+        font = QtGui.QFont()
+        font.setFamily("Courier New")
+        font.setPointSize(12)
+        font.setBold(True)
+        font.setWeight(75)
+        self.label_7.setFont(font)
+        self.label_7.setObjectName("label_7")
 
-        # Progress of sizer to spilt and adjust all panels
-        sizer = wx.BoxSizer(wx.VERTICAL)
-        sizer.Add(self.panel_1, 1, wx.EXPAND | wx.ALL)
-        sizer.Add(self.panel_2_3, 1, wx.EXPAND | wx.ALL)
-        sizer.Add(self.panel_4, 1, wx.EXPAND | wx.ALL)
-        topPanel.SetSizer(sizer)
+        self.pro = QtWidgets.QLineEdit(self.centralwidget)
+        self.pro.setGeometry(QtCore.QRect(70, 50, 121, 31))
+        self.pro.setObjectName("lineEdit")
+        self.pro.textChanged.connect(self.EvtTextPro)
 
-        sizer2 = wx.BoxSizer(wx.VERTICAL)
-        sizer2.Add(self.splitter, 1, wx.EXPAND | wx.ALL)
-        self.panel_2_3.SetSizer(sizer2)
+        self.src = QtWidgets.QLineEdit(self.centralwidget)
+        self.src.setGeometry(QtCore.QRect(250, 50, 121, 31))
+        self.src.setObjectName("lineEdit_2")
+        self.src.textChanged.connect(self.EvtTextSrc)
 
-        self.notebook1 = wx.Notebook(self.panel_2)
-        self.notebook2 = wx.Notebook(self.panel_3)
-        bsizer = wx.BoxSizer()
-        bsizer.Add(self.notebook1, 1, wx.EXPAND)
-        self.panel_2.SetSizerAndFit(bsizer)
+        self.sport = QtWidgets.QLineEdit(self.centralwidget)
+        self.sport.setGeometry(QtCore.QRect(450, 50, 121, 31))
+        self.sport.setObjectName("lineEdit_3")
+        self.sport.textChanged.connect(self.EvtTextSport)
 
-        bsizer = wx.BoxSizer()
-        bsizer.Add(self.notebook2, 2, wx.EXPAND)
-        self.panel_3.SetSizerAndFit(bsizer)
+        self.dst = QtWidgets.QLineEdit(self.centralwidget)
+        self.dst.setGeometry(QtCore.QRect(640, 50, 121, 31))
+        self.dst.setObjectName("lineEdit_4")
+        self.dst.textChanged.connect(self.EvtTextDst)
 
-        # set custom font for text,labels
-        self.font_12 = self.SetCustomFont(12)
-        self.font_10 = self.SetCustomFont(10)
+        self.dport = QtWidgets.QLineEdit(self.centralwidget)
+        self.dport.setGeometry(QtCore.QRect(840, 50, 121, 31))
+        self.dport.setObjectName("lineEdit_5")
+        self.dport.textChanged.connect(self.EvtTextDport)
 
-        self.notebook1.SetFont(self.font_10)
-        self.notebook2.SetFont(self.font_10)
+        self.checkBox = QtWidgets.QCheckBox(self.centralwidget)
+        self.checkBox.setGeometry(QtCore.QRect(20, 90, 61, 31))
+        font = QtGui.QFont()
+        font.setFamily("Courier New")
+        font.setPointSize(12)
+        font.setBold(True)
+        font.setWeight(75)
+        self.checkBox.setFont(font)
+        self.checkBox.setObjectName("checkBox")
+        self.lineEdit_6 = QtWidgets.QLineEdit(self.centralwidget)
+        self.lineEdit_6.setGeometry(QtCore.QRect(210, 90, 381, 31))
+        self.lineEdit_6.setObjectName("lineEdit_6")
+        self.button = QtWidgets.QPushButton(self.centralwidget)
+        self.button.setGeometry(QtCore.QRect(640, 90, 121, 28))
+        self.button.setObjectName("pushButton")
+        self.button.clicked.connect(self.EvtStart)
 
-        '''1st line'''
-        # choose interface
-        self.hint_Iface = wx.StaticText(
-            self.panel_1, label='NIC', pos=(10, 16))
-        self.hint_Iface.SetFont(self.font_12)
+        self.save = QtWidgets.QPushButton(self.centralwidget)
+        self.save.setGeometry(QtCore.QRect(840, 90, 121, 28))
+        self.save.setObjectName("pushButton_2")
 
-        self.iface = wx.ComboBox(
-            self.panel_1,
-            pos=(100, 15),
-            size=(500, -1),
-            choices=self.sample_list,
-            style=wx.CB_DROPDOWN | wx.CB_READONLY)
-        self.iface.SetFont(self.font_10)
-        self.Bind(wx.EVT_COMBOBOX, self.EvtComboBox, self.iface)
+        """button: continue to reassemble"""
+        self.continue_reassemble_button = QtWidgets.QPushButton(self.centralwidget)
+        self.continue_reassemble_button.setGeometry(QtCore.QRect(200, 930, 300, 40))
+        self.continue_reassemble_button.setText("Continue to reassemble")
+        self.continue_reassemble_button.setFont(QFont('Consolas', 11, QFont.Light))
+        self.continue_reassemble_button.clicked.connect(self.EvtContinueReassemble)
+        self.continue_reassemble_button.hide()
 
-        # network speed(download and upload)
-        self.hint_speed_down = wx.StaticText(self.panel_1, label='↓', pos=(660, 15))
-        self.hint_speed_down.SetFont(self.font_12)
-        share.network_speed_down = wx.StaticText(self.panel_1, label='', pos=(670, 15))
-        share.network_speed_down.SetFont(self.font_12)
+        self.save_reassemble_button = QtWidgets.QPushButton(self.centralwidget)
+        self.save_reassemble_button.setGeometry(QtCore.QRect(500, 930, 300, 40))
+        self.save_reassemble_button.setText("Save reassembly Result")
+        self.save_reassemble_button.setFont(QFont('Consolas', 11, QFont.Light))
+        self.save_reassemble_button.clicked.connect(self.EvtSaveReassemble)
+        self.save_reassemble_button.hide()
+        """table """
+        self.tableWidget = QtWidgets.QTableWidget(self.centralwidget)
+        self.tableWidget.verticalHeader().setDefaultSectionSize(25)
+        self.tableWidget.horizontalHeader().setFont(QFont('Consolas', 11, QFont.Light))
+        self.tableWidget.setSizeAdjustPolicy(
+        QtWidgets.QAbstractScrollArea.AdjustToContents)
+        self.tableWidget.setMinimumHeight(50)
+        self.tableWidget.setColumnCount(6)
+        self.tableWidget.setHorizontalHeaderLabels(['No.', 'Time', 'Source address', 'Destination address', 'Length','Protocol'])
+        self.tableWidget.setColumnWidth(0,60)
+        self.tableWidget.setColumnWidth(1,100)
+        self.tableWidget.setColumnWidth(2,280)
+        self.tableWidget.setColumnWidth(3,280)
+        self.tableWidget.setColumnWidth(4,75)
+        self.tableWidget.setColumnWidth(5,145)
+        self.tableWidget.setShowGrid(False)
+        self.tableWidget.setFont(QFont('Consolas', 10, QFont.Light))
+        
+        self.tableWidget.itemSelectionChanged.connect(self.EvtSelect)
+        self.tableWidget.itemDoubleClicked.connect(self.cancel)
+        self.tableWidget.setSelectionBehavior(QTableWidget.SelectRows)
+        self.tableWidget.setMouseTracking(True)
+        self.tableWidget.cellEntered.connect(self.handleItemEntered)
+        self.tableWidget.verticalHeader().setVisible(False)
 
-        self.hint_speed_up = wx.StaticText(self.panel_1, label='↑', pos=(850, 15))
-        self.hint_speed_up.SetFont(self.font_12)
-        share.network_speed_up = wx.StaticText(self.panel_1, label='', pos=(860, 15))
-        share.network_speed_up.SetFont(self.font_12)
 
-        '''2nd line'''
-        # choose protocol
-        self.hint_pro = wx.StaticText(
-            self.panel_1, 
-            label='PROTOCOL',
-            pos=(10, 55)).SetFont(self.font_12)
-        self.pro = wx.TextCtrl(self.panel_1, pos=(100, 55), size=(120, -1))
-        self.pro.AutoComplete(["ip","ip6","tcp","udp","igmp","icmp","arp","icmp6"])
-        self.pro.SetFont(self.font_10)
-        self.Bind(wx.EVT_TEXT, self.EvtTextPro, self.pro)
+        self.th=NewThread()
+        self.th.AddPacket.connect(self.ppp)
+        self.th.Scroll.connect(self.ScrollToEnd)
+        self.th.start()
 
-        # choose src
-        self.hint_src = wx.StaticText(
-            self.panel_1,
-            label='SRC',
-            pos=(230, 55)).SetFont(self.font_12)
-        self.src = wx.TextCtrl(self.panel_1, pos=(270, 55), size=(120, -1))
-        self.src.SetFont(self.font_10)
-        self.Bind(wx.EVT_TEXT, self.EvtTextSrc, self.src)
+        """tab1"""
+        self.tabWidget = QtWidgets.QTabWidget(self.centralwidget)
+        self.tabWidget.setMinimumHeight(50)
+        self.tabWidget.setFont(QFont('Consolas', 10, QFont.Light))
+        """tab2"""
+        self.tabWidget_2 = QtWidgets.QTabWidget(self.centralwidget)
+        self.tabWidget_2.setMinimumHeight(50)
+        self.tabWidget_2.setFont(QFont('Consolas', 10, QFont.Light))
 
-        # choose sport
-        self.hint_sport = wx.StaticText(
-            self.panel_1, 
-            label='SPORT', 
-            pos=(410, 55)).SetFont(self.font_12)
-        self.sport = wx.TextCtrl(self.panel_1, pos=(480, 55), size=(120, -1))
-        self.sport.SetFont(self.font_10)
-        self.Bind(wx.EVT_TEXT, self.EvtTextSport, self.sport)
+        """split window"""
+        self.horizontalLayoutWidget = QtWidgets.QWidget(self.centralwidget)
+        self.horizontalLayoutWidget.setGeometry(QtCore.QRect(0, 130,1000, 800))
+        
+        hbox = QtWidgets.QHBoxLayout(self.horizontalLayoutWidget)
+        hbox.setContentsMargins(0, 0, 0, 0)
+     
+        splitter = QSplitter(Qt.Vertical)
+        splitter.addWidget(self.tableWidget)
+        splitter.addWidget(self.tabWidget)
+        splitter.addWidget(self.tabWidget_2)
+        splitter.setSizes([300,300,300])
+        hbox.addWidget(splitter)
 
-        # choose dst
-        self.hint_dst = wx.StaticText(
-            self.panel_1,
-            label='DST',
-            pos=(620, 55)).SetFont(self.font_12)
-        self.dst = wx.TextCtrl(self.panel_1, pos=(660, 55), size=(120, -1))
-        self.dst.SetFont(self.font_10)
-        self.Bind(wx.EVT_TEXT, self.EvtTextDst, self.dst)
 
-        # choose dport
-        self.hint_dport = wx.StaticText(
-            self.panel_1, 
-            label='DPORT', 
-            pos=(790, 55)).SetFont(self.font_12)
-        self.dport = wx.TextCtrl(self.panel_1, pos=(850, 55), size=(120, -1))
-        self.dport.SetFont(self.font_10)
-        self.Bind(wx.EVT_TEXT, self.EvtTextDport, self.dport)
+        self.menubar = QtWidgets.QMenuBar(MainWindow)
+        self.menubar.setGeometry(QtCore.QRect(0, 0, 800, 26))
+        self.menubar.setObjectName("menubar")
+        MainWindow.setMenuBar(self.menubar)
+        self.statusbar = QtWidgets.QStatusBar(MainWindow)
+        self.statusbar.setFixedHeight(20)
+        self.statusbar.setObjectName("statusbar")
+        MainWindow.setStatusBar(self.statusbar)
 
-        '''3rd line'''
-        # button start/stop
-        self.button = wx.Button(
-            self.panel_1, 
-            label='START',
-            pos=(660, 95), 
-            size=(120, 30))
-        self.button.SetFont(self.font_12)
-        self.Bind(wx.EVT_BUTTON, self.EvtStart, self.button)
+        """progressbar"""
+        self.pbar=QProgressBar()
+        self.pbar.setValue(0)
+        self.pbar.setFixedWidth(1000)
+        self.statusbar.addPermanentWidget(self.pbar)
+        self.pbar.hide()
+        self.retranslateUi(MainWindow)
 
-        # save file
-        self.save = wx.Button(
-            self.panel_1, label='SAVE', pos=(850, 95), size=(120, 30))
-        self.save.SetFont(self.font_12)
-        self.Bind(wx.EVT_BUTTON, self.EvtSave, self.save)
-        self.save.Hide()
+        QtCore.QMetaObject.connectSlotsByName(MainWindow)
+    def ScrollToEnd(self,l):
+        self.tableWidget.scrollToBottom()
+    def ppp(self,l):
+        num=l[-1]
+        self.tableWidget.insertRow(num)
+        for i in range(6):
+            item= QTableWidgetItem(l[i])
+            self.tableWidget.setItem(num,i, item)
+    def retranslateUi(self, MainWindow):
+        _translate = QtCore.QCoreApplication.translate
+        MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
+        self.label_NIC.setText(_translate("MainWindow", "NIC"))
+        self.label_2.setText(_translate("MainWindow", "PRO"))
+        self.label_3.setText(_translate("MainWindow", "SPORT"))
+        self.label_5.setText(_translate("MainWindow", "DST"))
+        self.label_6.setText(_translate("MainWindow", "DPORT"))
+        self.label_7.setText(_translate("MainWindow", "SRC"))
+        self.checkBox.setText(_translate("MainWindow", "MAX"))
+        self.button.setText(_translate("MainWindow", "START"))
+        self.save.setText(_translate("MainWindow", "SAVE"))
+    def EVT_COMBOBOX(self):
+        """The event for selecting the Network Interface in Combobox, which is to save it for filter(default:all)"""
+        global flag_dict
+        flag_dict['iface'] = self.comboBox.currentText()
+        share.mac = share.mac_dict[flag_dict['iface']]
+        flag_dict['mac']=share.mac_dict[flag_dict['iface']]
 
-        # max performance checkbox  True means use additional process to listen, False means average CPU consumption
-        self.max = wx.CheckBox(
-            self.panel_1, label="MAX", pos=(10, 95), size=(70, 30))
-        self.max.SetValue(True)
-        self.max.SetFont(self.font_12)
-        self.Bind(wx.EVT_CHECKBOX, self.EvtCheckBoxHigh, self.max)
-        self.max.Bind(wx.EVT_MOTION, self.EvtMouseOnMax)
-        # search bar
-        self.search = wx.SearchCtrl(
-            self.panel_1,
-            pos=(100, 95),
-            size=(500, 30),
-            style=wx.TE_PROCESS_ENTER)
-        self.search.SetFont(self.font_10)
-        self.search.ShowCancelButton(True)
-
-        self.Bind(wx.EVT_TEXT_ENTER, self.EvtSearch, self.search)
-        self.Bind(wx.EVT_SEARCHCTRL_CANCEL_BTN, self.EvtDelete, self.search)
-
-        # brief info listctrl of packets sniffed
-        share.result_row = wx.ListCtrl(
-            self.panel_1, -1, style=wx.LC_REPORT, size=(980, 260), pos=(0, 140))
-        share.result_row.SetFont(self.font_10)
-        share.result_row.InsertColumn(0, "No.")
-        share.result_row.InsertColumn(1, "Time ")
-        share.result_row.InsertColumn(2, "Source address")
-        share.result_row.InsertColumn(3, "Destination address")
-        share.result_row.InsertColumn(4, "Length")
-        share.result_row.InsertColumn(5, "Protocol")
-        share.result_row.SetColumnWidth(0, 60)
-        share.result_row.SetColumnWidth(1, 100)
-        share.result_row.SetColumnWidth(2, 280)
-        share.result_row.SetColumnWidth(3, 280)
-        share.result_row.SetColumnWidth(4, 75)
-        share.result_row.SetColumnWidth(5, 145)
-
-        # left click to choose a row and show detail and the scroll bar freezes
-        self.Bind(wx.EVT_LIST_ITEM_SELECTED, self.EvtSelectRow, share.result_row)
-        # right click to cancel a row and the scroll bar continues
-        self.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, self.EvtCancelRow, share.result_row)
-        # right click to cancel a row and the scroll bar continues
-        share.result_row.Bind(wx.EVT_MOTION, self.EvtMouseOnRow) 
-
-        # The button for reassembling tcp/http and save in local
-        self.reassembly = wx.Button(self.panel_4, label='Reassembly', pos=(400, -1), size=(200, 30))
-        self.reassembly.SetFont(self.font_12)
-        self.Bind(wx.EVT_BUTTON, self.EvtReassemble, self.reassembly)
-        self.reassembly.Hide()
-
-        self.size_label = wx.StaticText(self.panel_4, label='', pos=(700, 7), size=(200, 30))
-        self.size_label.SetFont(self.font_12)
-        # Event bind for close the window
-        self.Bind(wx.EVT_CLOSE, self.EvtClose)
+    def EvtTextPro(self):
+        """The event for entering the protocol, which is to save it for filter(default:all)"""
+        global flag_dict
+        flag_dict['pro'] = self.pro.text()
     
+    def EvtTextSrc(self):
+        """The event for entering the source address, which is to save it for filter(default:all)"""
+        global flag_dict
+        flag_dict['src'] = self.src.text()
+    def EvtTextSport(self):
+        """The event for entering the source port, which is to save it for filter(default:all)"""
+        global flag_dict
+        flag_dict['sport'] = self.sport.text()
 
-    #The following functions are not events but additional modification or adding a new thread to prevent GUI from freezing
+    def EvtTextDst(self):
+        """The event for entering the destination address, which is to save it for filter(default:all)"""
+        global flag_dict
+        flag_dict['dst'] = self.dst.text()
 
-    def SetCustomFont(self, size):
-        """Get font size and return a Font instance"""
-        return (wx.Font(size, wx.MODERN, wx.NORMAL, wx.LIGHT, False, u'Consolas'))
+    def EvtTextDport(self):
+        """The event for entering the destination port, which is to save it for filter(default:all)"""
+        global flag_dict
+        flag_dict['dport'] = self.dport.text()
 
-    def OpenFile(self,filename):
-        """A new thread to open file in new windows so that the GUI will not freeze."""
-        os.system(filename)
-    
-    def CreateNewTab(self, notebook, title, content):
-        """Create a new tab when the notebook and content is given"""
-        bsizer = wx.BoxSizer()
-        page = wx.Panel(notebook)
-        notebook.AddPage(page, title)
+    def EvtStart(self):
+        global flag_dict
+        flag_dict['start'] = not flag_dict['start']
+        if (flag_dict['start']):
+            self.button.setText('Stop')
+        else:
+            self.button.setText('Start')
+
+    def handleItemEntered(self,row,column):
+        '''for i in range(self.tabWidget.count()):
+            self.tabWidget.removeTab(i)'''
+        
+
+    def EvtSelect(self):
         try:
-            text = wx.TextCtrl(page, -1, content, style=wx.TE_MULTILINE | wx.BORDER_NONE | wx.TE_READONLY)
-        except:
-            text = wx.TextCtrl(page, -1, "UnicodeDecodeError: 'utf-8' codec can't decode this information",
-                               style=wx.TE_MULTILINE | wx.BORDER_NONE | wx.TE_READONLY)
-        text.SetFont(self.font_10)
-        bsizer.Add(text, 1, wx.EXPAND)
-        page.SetSizerAndFit(bsizer)
-    
-    def Choosing(self, val):
-        """A new thread is open to process when a packet is chosen"""
-        #clear the size label 
-        self.size_label.SetLabel("")
-        # freeze the panel_2,panel_# for processing
-        self.panel_2.Freeze()
-        self.panel_3.Freeze()
-
-        # not cancel a row
-        share.flag_cancel = False
-
-        # clear all remaining tabs
-        try:
-
-            while (self.notebook2.GetPageCount()):
-                self.notebook2.DeletePage(0)
-            while (self.notebook1.GetPageCount()):
-                self.notebook1.DeletePage(0)
+            self.continue_reassemble_button.hide()
+            self.save_reassemble_button.hide()
+            self.pbar.hide()
         except:
             pass
-
-        share.flag_select = True  # select a row
+        for i in self.tableWidget.selectedItems():
+            val=i.row()
+        share.flag_select = True
+        share.flag_cancel = False
+        
+        self.final_tcp_seq = ""
+        self.final_ip_seq = ""
+        count=self.tabWidget.count()
+        for i in range(self.tabWidget.count()):
+            self.tabWidget.removeTab(0)
+        for i in range(self.tabWidget_2.count()):
+            self.tabWidget_2.removeTab(0)
+        
         layerlist = share.list_packet[val].packet_to_layerlist()
-        final_tcp_seq = ""
-        final_ip_seq = ""
 
+        #single packet infomation
         for i in layerlist:
-            # notebook1 with detailed info for single packet
+            QtCore.QCoreApplication.processEvents()
             s = ""
             s = s + "No. " + str(val) + "\n" + i[0] + "\n"
             for key in i[1]:
                 s = s + "%-10s%s\n" % ((key[0].upper()+key[1:]+":"), i[1][key])
-            wx.CallAfter(self.CreateNewTab, self.notebook1, i[0], s)
-        wx.CallAfter(self.CreateNewTab, self.notebook1, "Whole in hex", share.list_packet[val].hexdump())
-        try:
-            if (share.list_packet[val].load):
-                wx.CallAfter(self.CreateNewTab, self.notebook1, "Load in utf-8", share.list_packet[val].packet_to_load_utf8())
-                wx.CallAfter(self.CreateNewTab, self.notebook1, "Load in GB2312", share.list_packet[val].packet_to_load_gb())
-        except:
-            pass
-
-        try:
-            self.panel_2.Thaw()
-        except:
-            pass
+            self.CreateNewTab(self.tabWidget,i[0],s)
+        self.CreateNewTab(self.tabWidget, "Whole in hex",share.list_packet[val].hexdump())
 
         for i in layerlist:
             # detect IP/TCP reassembly
@@ -387,399 +443,193 @@ class GUI(wx.Frame):
                     (ip_src, ip_dst, ip_id) = (i[1]["src"], i[1]["dst"],
                                                i[1]["id"])
                     try:
-                        final_ip_seq = share.ip_seq[(ip_src, ip_dst, ip_id)]
+                        self.final_ip_seq = share.ip_seq[(ip_src, ip_dst, ip_id)]
                     except:
-                        final_ip_seq = 'Too large to assemble'
+                        self.final_ip_seq = 'Too large to assemble'
 
             if "TCP" in i:
                 try:
-                    final_tcp_seq = packet_tcp_seq(i[1]["seq"])
+                    self.final_tcp_seq = packet_tcp_seq(i[1]["seq"])
                 except:
-                    final_tcp_seq = 'Too large to assemble'
-                final_tcp_seq = packet_tcp_seq(i[1]["seq"])
-        if (final_tcp_seq != ""):  # Satisify TCP reassembly
-            self.processing = wx.StaticText(self.panel_4, label='Processing.....................', size=(1000, 40))
-            self.processing.SetFont(self.font_12)
-            if (final_tcp_seq == 'Too large to assemble'):  # Too big for memory
-                wx.CallAfter(self.CreateNewTab, self.notebook2, "TCP reassemble failed", final_tcp_seq)
-
-            else:
-                s = "No. " + str(val) + " can be TCP assembled by "
-                for i in final_tcp_seq:
-                    s = s + "No. " + str(i[1][0]) + ", "
-                s = s[:-2] + "\n" + "After reassembly:" + "\n" + "\n"
-                s_gb = s_utf8 = s_raw = ""
+                    self.final_tcp_seq = 'Too large to assemble'
+                self.final_tcp_seq = packet_tcp_seq(i[1]["seq"])
+        self.reassemble_size=0
+        """TCP"""
+        if (self.final_tcp_seq != ""):  # Satisify TCP reassembly
+            if (self.final_tcp_seq == 'Too large to assemble'):  # Too big for memory
+                self.CreateNewTab(self.tabWidget_2, "TCP reassemble failed", self.final_tcp_seq)
+                return
+            
+            #First give the information of reassemble
+            s = "No. " + str(val) + " can be TCP assembled by "
+            for i in self.final_tcp_seq:
+                QtCore.QCoreApplication.processEvents()
+                s = s + "No. " + str(i[1][0]) + ", "
                 try:
-                    first_index = final_tcp_seq[0][1][0]
-                    content = b''
-                    for i in final_tcp_seq:
-                        content += share.list_packet[i[1][0]].load
-                    response = HttpConverter(content).getcontent()
-                    h = ""
-                    for i in response.headers:
-                        h += str(i) + " : " + str(response.headers[i]) + "\n"
-                    s = b"No. " + bytes(str(val), 'utf8') + b" can be HTTP assembled by "
-                    for i in final_tcp_seq:
-                        s = s + b"No. " + bytes(str(i[1][0]), 'utf8') + b", "
-                    s = s[:-2] + b"\n" + b"After reassembly:" + b"\n" + b"\n"
-                    try:
-                        content = response.data
-                    except:
-                        pass
-                    self.bytes_array = content
-                    h = "HTTP Header in No. " + str(first_index) + '\n' + h
-
-                    wx.CallAfter(self.CreateNewTab, self.notebook2, "HTTP HEADER", h)
-                    wx.CallAfter(self.CreateNewTab, self.notebook2, "HTTP CONTENT", s + content)
+                    self.reassemble_size+=len(share.list_packet[i[1][0]].load)
                 except:
-                    self.reassemble_size=0
-                    self.bytes_array = b""
-                    for i in final_tcp_seq:
-                        try:
-                            self.bytes_array += share.list_packet[i[1][0]].load
-                        except:
-                            pass
-
-                        s_raw = s_raw + share.list_packet[i[1][0]].packet_to_load_plain()
-                        if (i[1][1] != 0):
-                            self.reassemble_size+=len(share.list_packet[i[1][0]].load)
-                            s_gb = s_gb + share.list_packet[i[1][0]].packet_to_load_gb()
-                            s_utf8 = s_utf8 + share.list_packet[i[1][0]].packet_to_load_utf8()
-                    self.size_label.SetLabel("Total Size: "+str(self.reassemble_size)+"B")
-                    self.panel_3.Thaw()
-                    self.panel_3.Freeze()
-                    q = ""
-                    q = q + "".join(packet_align(s_raw))
-                    s_gb = s + "\n" + "Decoded by GB2312:" + "\n" + s_gb
-                    s_utf8 = s + "\n" + "Decoded by UTF8:" + "\n" + s_utf8
-                    s_raw = s + "Raw bytes:" + "\n" + q
-                    wx.CallAfter(self.CreateNewTab, self.notebook2, "TCP reassemble Hex", s_raw)
-                    wx.CallAfter(self.CreateNewTab, self.notebook2, "TCP reassemble UTF-8", s_utf8)
-                    wx.CallAfter(self.CreateNewTab, self.notebook2, "TCP reassemble GB2312", s_gb)
-                    
-                wx.CallAfter(self.reassembly.Show)
-
-
-        if (final_ip_seq != "" and len(final_ip_seq) != 1):  # Satisify IP reassembly
-            if (final_ip_seq == 'Too large to assemble'):  # Too big for memory
-
-                wx.CallAfter(self.CreateNewTab, self.notebook2, "IP reassemble failed", final_ip_seq)
-
+                    """no load"""
+                    pass
+            s = s[:-2]
+            self.CreateNewTab(self.tabWidget_2,"Reassembly Info(%dB)"%self.reassemble_size,s)
+            if (len(self.final_tcp_seq)<2000):
+                """Total reassemble seq len<2000 means quick reassemble, which shows result immediately"""
+                self.ShowTcpResult()
             else:
-                self.reassemble_size=0
-                s = "No. " + str(val) + " can be IP assembled by "
-                for i in final_ip_seq:
-                    s = s + "No. " + str(i[0]) + ", "
-                s = s[:-2] + "\n" + "After reassembly:" + "\n" + "\n"
-                s_gb = s_utf8 = s_raw = ""
-                for i in final_ip_seq:
-                    s_raw = s_raw + share.list_packet[i[0]].packet_to_load_plain()
-                    s_gb = s_gb + share.list_packet[i[0]].packet_to_load_gb()
-                    s_utf8 = s_utf8 + share.list_packet[i[0]].packet_to_load_utf8()
-                    try:
-                        self.reassemble_size+=len(share.list_packet[i[0]].load)
-                    except AttributeError:
-                        pass
-                self.bytes_array = s_utf8
-                self.size_label.SetLabel("Total Size: "+str(self.reassemble_size)+"B")
-                q = ""
-                q = q + "".join(packet_align(s_raw))
-                s_gb = s + "\n" + "Decoded by GB2312:" + "\n" + s_gb
-                s_utf8 = s + "\n" + "Decoded by UTF8:" + "\n" + s_utf8
-                s_raw = s + "Raw bytes:" + "\n" + q
-                wx.CallAfter(self.CreateNewTab, self.notebook2, "IP reassemble Hex", s_raw)
-                wx.CallAfter(self.CreateNewTab, self.notebook2, "IP reassemble UTF-8", s_utf8)
-                wx.CallAfter(self.CreateNewTab, self.notebook2, "IP reassemble GB2312", s_gb)
-                wx.CallAfter(self.reassembly.Show)
+                """Total reassemble seq len>2000 means slow reassemble, which should wait for user's response"""
+                self.continue_reassemble_button.show()
+            self.save_reassemble_button.show()
+            return
+
+        """IP"""
+        if (self.final_ip_seq != "" and len(self.final_ip_seq) != 1):  # Satisify IP reassembly
+            if (self.final_ip_seq == 'Too large to assemble'):  # Too big for memory
+                self.CreateNewTab(self.tabWidget_2, "IP reassemble failed", self.final_ip_seq)
+            s = "No. " + str(val) + " can be IP assembled by "
+            for i in self.final_ip_seq:
+                QtCore.QCoreApplication.processEvents()
+                s = s + "No. " + str(i[0]) + ", "
+                try:
+                    self.reassemble_size+=len(share.list_packet[i[0]].load)
+                except AttributeError:
+                    """no load"""
+                    pass
+            s = s[:-2]
+            self.CreateNewTab(self.tabWidget_2,"Reassembly Info(%dB)"%self.reassemble_size,s)
+            if (len(self.final_ip_seq)<2000):
+                """Total reassemble seq len<2000 means quick reassemble, which shows result immediately"""
+                self.ShowIpResult()
+            else:
+                """Total reassemble seq len>2000 means slow reassemble, which should wait for user's response"""
+                self.continue_reassemble_button.show()
+            self.save_reassemble_button.show()
+            return
                 
-
+    
+    def ShowIpResult (self):
+        s = "After reassembly:\n" 
+        s_gb = s_utf8 = s_raw = ""
+        for i in self.final_ip_seq:
+            s_raw = s_raw + share.list_packet[i[0]].packet_to_load_plain()
+            s_gb = s_gb + share.list_packet[i[0]].packet_to_load_gb()
+            s_utf8 = s_utf8 + share.list_packet[i[0]].packet_to_load_utf8()
+           
+        self.file_content = s_utf8
+        #self.size_label.SetLabel("Total Size: "+str(self.reassemble_size)+"B")
+        q = ""
+        q = q + "".join(packet_align(s_raw))
+        s_gb = s + "\n" + "Decoded by GB2312:" + "\n" + s_gb
+        s_utf8 = s + "\n" + "Decoded by UTF8:" + "\n" + s_utf8
+        s_raw = s + "\n"+ "Raw bytes:" + "\n" + q
+        self.CreateNewTab(self.tabWidget_2, "IP reassemble Hex", s_raw)
+        self.CreateNewTab(self.tabWidget_2, "IP reassemble UTF-8", s_utf8)
+        self.CreateNewTab(self.tabWidget_2, "IP reassemble GB2312", s_gb)
+    def ShowTcpResult(self):
+        s = "After reassembly:\n"
+        s_gb = s_utf8 = s_raw = ""
         try:
-            self.panel_3.Thaw()
-        except:
-            pass
-
-    #the following functions are event funtions bound to certain actions
-    def EvtStart(self, event):
-        """The event for clicking the Start/Stop button, which is to start/stop the progress"""
-        global flag_dict
-        if (flag_dict['iface'] == ""):
-            dlg = wx.MessageDialog(None, u"You have to choose a network interface", u"Fatal Error")
-            if dlg.ShowModal() == wx.ID_YES:
-                dlg.Destroy()
-        else:
-            flag_dict['start'] = not flag_dict['start']
-            if (flag_dict['start']):
-                self.button.SetLabel('Stop')
-                sleep(1)
-                if (flag_dict['error']==True):
-                    flag_dict['start']=False
-                    flag_dict['error'] = False
-                    dlg = wx.MessageDialog(None, u"Filter is not right. Please rewrite!", u"Fatal Error")
-                    self.button.SetLabel('Start')
-                    if dlg.ShowModal() == wx.ID_YES:
-                        dlg.Destroy()
-                    
-            else:
-                self.button.SetLabel('Start')
-    def EvtClose(self, event):
-        """The event for closing the GUI, which is to terminate everthing involved"""
-        global flag_dict
-        flag_dict['close'] = True
-        flag_dict['start'] = True
-        self.Destroy()
-        p.terminate()
-
-    def EvtSave(self, event):
-        """The event for clicking the Save button, which is to save selected packet(s) to a readable txt file"""
-        num = share.result_row.GetSelectedItemCount()
-        if (num == 0):
-            dlg = wx.MessageDialog(None, u"You have to select at least a row so that you can save.", u"Fatal Error")
-            if dlg.ShowModal() == wx.ID_YES:
-                dlg.Destroy()
-        else:
-            selection = []
-            index = share.result_row.GetFirstSelected()
-            selection.append(index)
-            while len(selection) != num:
-                index = share.result_row.GetNextSelected(index)
-                selection.append(index)
-
-            filename = ""
-            openFileDialog = wx.FileDialog(frame, "SAVE", "", "",
-                                           "TXT files (.txt)|.txt",
-                                           wx.FD_SAVE)
-            if openFileDialog.ShowModal() == wx.ID_OK:
-                filename = openFileDialog.GetPath()
-            openFileDialog.Destroy()
-
-            if (filename != ""):
-                f = open(filename, "a")
-                for i in selection:
-                    f.write('No.' + str(share.list_packet[i].num) + '\nCapture Time:' + share.list_packet[i].time +
-                            '\tSave Time:' + datetime.now().strftime("%H:%M:%S") +
-                            '\n' + share.list_packet[i].show(dump=True) + '\n')
-                f.close()
-                # open the file as soon as the progress of saving is finished
-                t=Thread(target=self.OpenFile,args=(filename,))
-                t.start()
-   
-    def EvtReassemble(self, event):
-        """The event for clicking the Reassembly button, which is to save the whole packets' load information into a file
-           Only support TCP reassembly(especially for ftp) and HTTP reassembly(get the whole html)"""
-        filename = ""
-        openFileDialog = wx.FileDialog(frame, "SAVE REASSEMBLY", "", "",
-                                       "",
-                                       wx.FD_SAVE)
-        if openFileDialog.ShowModal() == wx.ID_OK:
-            filename = openFileDialog.GetPath()
-        openFileDialog.Destroy()
-
-        if (filename != ""):
+            first_index = self.final_tcp_seq[0][1][0]
+            content = b''
+            for i in self.final_tcp_seq:
+                QtCore.QCoreApplication.processEvents()
+                content += share.list_packet[i[1][0]].load
+            response = HttpConverter(content).getcontent()
+            h = ""
+            for i in response.headers:
+                QtCore.QCoreApplication.processEvents()
+                h += str(i) + " : " + str(response.headers[i]) + "\n"
+            s = b"No. " + bytes(str(val), 'utf8') + b" can be HTTP assembled by "
+            for i in self.final_tcp_seq:
+                QtCore.QCoreApplication.processEvents()
+                s = s + b"No. " + bytes(str(i[1][0]), 'utf8') + b", "
+            s = s[:-2] + b"\n" + b"After reassembly:" + b"\n" + b"\n"
             try:
-                f = open(filename, "wb")
-                f.write(self.bytes_array)
-                f.close()
-            except:
-                f = open(filename, "w")
-                f.write(self.bytes_array)
-                f.close()
-            # open the file as soon as the progress of saving is finished
-            os.system(filename)
-
-    def EvtTextPro(self, event):
-        """The event for entering the protocol, which is to save it for filter(default:all)"""
-        global flag_dict
-        flag_dict['pro'] = event.GetString()
-
-    def EvtTextSrc(self, event):
-        """The event for entering the source address, which is to save it for filter(default:all)"""
-        global flag_dict
-        flag_dict['src'] = event.GetString()
-
-    def EvtTextSport(self, event):
-        """The event for entering the source port, which is to save it for filter(default:all)"""
-        global flag_dict
-        flag_dict['sport'] = event.GetString()
-
-    def EvtTextDst(self, event):
-        """The event for entering the destination address, which is to save it for filter(default:all)"""
-        global flag_dict
-        flag_dict['dst'] = event.GetString()
-
-    def EvtTextDport(self, event):
-        """The event for entering the destination port, which is to save it for filter(default:all)"""
-        global flag_dict
-        flag_dict['dport'] = event.GetString()
-
-    def EvtComboBox(self, event):
-        """The event for selecting the Network Interface in Combobox, which is to save it for filter(default:all)"""
-        global flag_dict
-        flag_dict['iface'] = event.GetString()
-        share.mac = share.mac_dict[flag_dict['iface']]
-        flag_dict['mac']=share.mac_dict[flag_dict['iface']]
-
-    def EvtCheckBoxHigh(self, event):
-        """The event for selecting the mode of mulitiprocessing for the higher-end performance, which is to save it for filter(default:on)"""
-        global flag_dict
-        flag_dict['max'] = self.max.GetValue()
-
-    def EvtSearch(self, event):
-        """The event for entering keywords in search bar and using 'ENTER' to proceed, which is to show the results containing keywords.
-           The packet list shown in GUI will immediately stop updating while the backend is still sniffering.
-           In other words, one can only search the packets sniffed according to what have been sniffed.
-           Clear the search bar and all packets sniffed in the backend will start updating again, even in the period of seaching"""
-        share.result_row.DeleteAllItems()
-        share.flag_search = True
-        self.index_new = []
-        keyword = self.search.GetValue()
-        after_search_index=0
-        for i in range(len(share.list_tmp)):
-            try:
-                # keywords can exist in raw/utf-8/GB2312 packet
-                sentence = share.list_packet[i].packet_to_all().lower()
-                sentence += share.list_packet[i].packet_to_load_gb().lower()
-                sentence += share.list_packet[i].packet_to_load_utf8().lower()
+                content = response.data
             except:
                 pass
-            if (keyword.lower() in sentence):
-                share.dict_search[after_search_index]=i
-                after_search_index+=1
-                share.result_row.Append(share.list_tmp[i])
-                self.index_new.append(i)
-        if (keyword == ""):
-            # if nothing is in the searchbar, return the whole result and keep sniffering
-            share.flag_search = False
-            share.flag_select = False
+            self.file_content = content
+            h = "HTTP Header in No. " + str(first_index) + '\n' + h
 
-    def EvtDelete(self, event):
-        """The event for deleting the search bar using given icon, which is to give back the all packets sniifed and start updating."""
-        share.result_row.DeleteAllItems()
-        share.flag_search = True
-        self.index_new = []
-        keyword = self.search.GetValue()
-        for i in range(len(share.list_tmp)):
-            share.result_row.Append(share.list_tmp[i])
-            self.index_new.append(i)
-        if (keyword == ""):
-            share.flag_search = False
-            share.flag_select = False
-
-    def EvtSelectRow(self, event):
-        """The event for selecting a row(packet), which is to show detailed and reassembly information about the chosen packet."""
-        # get index of selected packet
-        self.save.Show()
-        # if lock.locked():
-        val = int(event.GetText())
-        # Adding a dedicated new thread for time-consuming caculation it packet processing
-        self.t.append(Thread(target=self.Choosing, args=(val,)))
-        self.t[-1].start()
-
-    def EvtCancelRow(self, event):
-        """The event for right clicking a row(packet), which is to make the scroll bar update again."""
-        self.save.Show()
-        share.flag_cancel = True
-
-    def EvtMouseOnRow(self, event):
-        """When mouse is on one of the packets, the event is to show WireShark style Info"""
-        global list_info
-        global list_byte
-        if (flag_dict['start']==False):
-            x = event.GetX()
-            y = event.GetY()
-            index, flags = share.result_row.HitTest((x, y))
-            if (index>=0):
+            self.CreateNewTab(self.tabWidget_2, "HTTP HEADER", h)
+            self.CreateNewTab(self.tabWidget_2, "HTTP CONTENT", s + content)
+        except:
+            self.file_content = b""
+            for i in self.final_tcp_seq:
+                QtCore.QCoreApplication.processEvents()
                 try:
-                    if (share.flag_search==True):
-                        share.result_row.SetToolTip(list_info[share.dict_search[index]].info)
-                    else:
-                        share.result_row.SetToolTip(list_info[index].info)
+                    self.file_content += share.list_packet[i[1][0]].load
                 except:
-                    share.result_row.SetToolTip("wait for processing!")
+                    pass
 
-    def EvtMouseOnMax(self, event):
-        """When mouse cursor on max checkbox, instructions occurs."""
-        tip = wx.adv.RichToolTip("MAX MODE","Using addtional process to sniff\nExtremely reduce packet loss.\nBut is highly CPU-consuming.")
-        tip.SetTitleFont(self.SetCustomFont(12))
-        tip.ShowFor(self.max)    
-
-"""The following fuctions are dedicated processes in the backend"""
-def InfiniteProcess(flag_dict, pkt_lst):
-    """The dedicated process to sniff, which is to get the iface and filter and then starting sniffing"""
-    while (flag_dict['close'] == False):
-        sleep(0.1)
-        if (flag_dict['start'] == True and flag_dict['error'] == False):
+                s_raw = s_raw + share.list_packet[i[1][0]].packet_to_load_plain()
+                if (i[1][1] != 0):
+                    s_gb = s_gb + share.list_packet[i[1][0]].packet_to_load_gb()
+                    s_utf8 = s_utf8 + share.list_packet[i[1][0]].packet_to_load_utf8()
+            #self.size_label.SetLabel("Total Size: "+str(self.reassemble_size)+"B")
+            q = ""
+            q = q + "".join(packet_align(s_raw))
+            s_gb = s + "\n" + "Decoded by GB2312:" + "\n" + s_gb
+            s_utf8 = s + "\n" + "Decoded by UTF8:" + "\n" + s_utf8
+            s_raw = s + "\n"+ "Raw bytes:" + "\n" + q
+            self.CreateNewTab(self.tabWidget_2,"TCP reassemble Hex", s_raw)
+            self.CreateNewTab(self.tabWidget_2,"TCP reassemble UTF-8", s_utf8)
+            self.CreateNewTab(self.tabWidget_2,"TCP reassemble GB2312", s_gb)
+    def EvtContinueReassemble (self):
+        if (self.final_ip_seq==""):
+            self.ShowTcpResult()
+        else:
+            self.ShowIpResult()
+    def EvtSaveReassemble(self):
+        self.file_content = b""
+        self.pbar.show()
+        current_num=0
+        if (self.final_tcp_seq!=""):
+            """mean TCP reassemble"""
+            total_num=len(self.final_tcp_seq)
+            for i in self.final_tcp_seq:
+                QtCore.QCoreApplication.processEvents()
+                try:
+                    self.file_content += share.list_packet[i[1][0]].load
+                except:
+                    """No load"""
+                    pass
+                current_num+=1
+                self.pbar.setValue(int(current_num/total_num*100))
+        else:
+            """mean TCP reassemble"""
+            total_num=len(self.final_ip_seq)
+            for i in self.final_ip_seq:
+                QtCore.QCoreApplication.processEvents()
+                try:
+                    self.file_content += share.list_packet[i[0]].load
+                except:
+                    """No load"""
+                    pass
+                current_num+=1
+                self.pbar.setValue(int(current_num/total_num*100))
+        self.pbar.hide()
+        filename = QFileDialog.getSaveFileName()[0]
+        try:
+            """if byte"""
+            f = open(filename, "wb")
+            f.write(self.file_content)
+            f.close()
+        except:
+            """if not"""
+            f = open(filename, "w")
+            f.write(self.file_content)
+            f.close()
+        os.system(filename)
+    def CreateNewTab(self,tab,title,content):
+        a=QtWidgets.QTextBrowser() 
+        a.setFrameStyle(QFrame.NoFrame)
+        a.setText(content)
+        a.setFont(QFont('Consolas', 10, QFont.Light)) 
+        tab.addTab(a,title)
             
-            sleep(0.1)
-            f = ""
-            if (flag_dict['close'] == False):
-                for key in flag_dict.keys():
-                    if (flag_dict[key] != ''):
-                        if (key == 'pro'):
-                            f += " and " + flag_dict['pro']
-                        elif (key == 'src' or key == 'dst'):
-                            f += " and " + key + " " + flag_dict[key]
-                        elif (key == 'sport'):
-                            f += " and src port " + flag_dict['sport']
-                        elif (key == 'dport'):
-                            f += " and dst port " + flag_dict['dport']
-                f = f[5:]
-            #try:
-            if (f == ""):
-                a = sniff(
-                    iface=flag_dict['iface'],
-                    store=0,
-                    pkt_lst=pkt_lst,
-                    flag_dict=flag_dict,
-                    stopperTimeout=0.2,
-                )
-            else:
-                a = sniff(
-                    iface=flag_dict['iface'],
-                    store=0,
-                    filter=f,
-                    pkt_lst=pkt_lst,
-                    flag_dict=flag_dict,
-                    stopperTimeout=0.2,
-                )
-            #except NameError:
-                #flag_dict['error']= True
-                #continue
-                
-def CurrentPktToInfo(list_byte,list_info,flag_dict):
-    """Convert all current packets existed to WireShark type info"""
-    index=0
-    while (True):
-        if(flag_dict["start"]==False and len(list_byte)>0):
-            a=pyshark.InMemCapture(only_summaries=True)
-            for proc in psutil.process_iter():
-                # check whether the process name matches
-                if (proc.name() == "dumpcap.exe" or proc.name() == "tshark.exe"):
-                    proc.kill()
-            
-            t=a.parse_packets(list_byte[index:])
-            for i in t:
-                list_info.append(i)
-            index=len(list_info)
-            a.close()
-            for proc in psutil.process_iter():
-                # check whether the process name matches
-                if (proc.name() == "dumpcap.exe" or proc.name() == "tshark.exe"):
-                    proc.kill()
-            while(flag_dict["start"]==False):
-                sleep(1)
-        sleep(1)
-    #a.set_debug()
-    
-        
-    #a.close()
-
-    for proc in psutil.process_iter():
-        # check whether the process name matches
-        if proc.name() == "dumpcap.exe":
-            proc.kill()
-
-
-"""The following fuctions are dedicated threads in the backend"""
+    def cancel(self):
+        share.flag_cancel = True
+'''
 def process():
     """The dedicated thread to process raw packet, which is to process each raw packet and make it display in the Listctrl"""
     num = 0
@@ -794,19 +644,22 @@ def process():
         packet = Ether(p[0])
         packet.time = p[1]
         packet.num = num
-        num += 1
+        
         packet = Packet_r(packet)
         share.list_packet.append(packet)
-
         if (share.flag_search == False):
-            share.result_row.Append(packet.packet_to_info())
+            ex.tableWidget.insertRow(num)
+            l=packet.packet_to_info()
+            for i in range(6):
+                item= QTableWidgetItem(l[i])
+                ex.tableWidget.setItem(num,i, item)
         share.list_tmp.append(packet.packet_to_info())
+        num += 1
         if ((share.flag_select == False and share.flag_search == False)
                 or (share.flag_select == True and share.flag_cancel == True
                     and share.flag_search == False)):
             # make the scroll bar update
-            share.result_row.EnsureVisible(share.result_row.GetItemCount() - 1)
-
+            ex.tableWidget.scrollToBottom()
         # possible preprocess for TCP reassembly
         if packet.haslayer(TCP):
             seq = packet.packet[TCP].seq
@@ -829,60 +682,111 @@ def process():
                     share.ip_seq[(packet.packet[IP].src, packet.packet[IP].dst,
                                   packet.packet[IP].id)] = [(packet.num, packet.packet[IP].flags,
                                                              packet.packet[IP].frag)]
+'''
 
-def networkspeed():
-    """The dedicated thread to show network speed, which is to display upload/download speed every second.
-       The value might be much lower than the actual one due to computation and load bottleneck"""
-    position = 0
-    global flag_dict
+def InfiniteProcess(flag_dict, pkt_lst):
+    """The dedicated process to sniff, which is to get the iface and filter and then starting sniffing"""
     while (flag_dict['close'] == False):
-        s_up=0.00
-        s_down=0.00
-        while (share.mac==''):
-            sleep(0.5)
-        sleep(1)
-        t0 = time.time()
-        macname=share.dict_mac2name[share.mac]
-        upload=psutil.net_io_counters(pernic=True)[macname][0]
-        download=psutil.net_io_counters(pernic=True)[macname][1]
-        up_down=(upload,download)
-        while 1:
-            last_up_down = up_down
-            upload=psutil.net_io_counters(pernic=True)[macname][0]
-            download=psutil.net_io_counters(pernic=True)[macname][1]
-            t1 = time.time()
-            up_down = (upload,download)
-            try:
-                s_up, s_down = [(now - last) / (t1 - t0) 
-                        for now,last in zip(up_down, last_up_down)]             
-                t0 = time.time()
-            except:
-                pass
+        sleep(0.1)
+        if (flag_dict['start'] == True and flag_dict['error'] == False):
+            
+            sleep(0.1)
+            f = ""
+            if (flag_dict['close'] == False):
+                for key in flag_dict.keys():
+                    if (flag_dict[key] != ''):
+                        if (key == 'pro'):
+                            f += " and " + flag_dict['pro']
+                        elif (key == 'src' or key == 'dst'):
+                            f += " and " + key + " " + flag_dict[key]
+                        elif (key == 'sport'):
+                            f += " and src port " + flag_dict['sport']
+                        elif (key == 'dport'):
+                            f += " and dst port " + flag_dict['dport']
+                f = f[5:]
+            if (f == ""):
+                a = sniff(
+                    iface=flag_dict['iface'],
+                    store=0,
+                    pkt_lst=pkt_lst,
+                    flag_dict=flag_dict,
+                    stopperTimeout=0.2,
+                )
+            else:
+                a = sniff(
+                    iface=flag_dict['iface'],
+                    store=0,
+                    filter=f,
+                    pkt_lst=pkt_lst,
+                    flag_dict=flag_dict,
+                    stopperTimeout=0.2,
+                )
+class NewThread(QThread):
+    AddPacket = pyqtSignal(list)
+    Scroll    = pyqtSignal(str)
+    def __init__(self, parent=None):
+        QThread.__init__(self, parent=parent)
+        self.isRunning = True
 
-            time.sleep(0.5) 
-            os.system('cls')
-            s_up,s_down=int(s_up),int(s_down) 
-            if s_up // 1024 < 1:
-                speed_up = str(round(s_up, 1)) + "Bps"
-            elif s_up // 1024 ** 2 < 1:
-                speed_up = str(round(s_up / 1024, 1)) + 'KBps'
-            elif s_up // 1024 ** 3 < 1:
-                speed_up = str(round(s_up / 1024 ** 2, 1)) + "MBps"
-            if s_down // 1024 < 1:
-                speed_down = str(round(s_down, 1)) + "Bps"
-            elif s_up // 1024 ** 2 < 1:
-                speed_down = str(round(s_down / 1024, 1)) + 'KBps'
-            elif s_up // 1024 ** 3 < 1:
-                speed_down = str(round(s_down / 1024 ** 2, 1)) + "MBps"
-            share.network_speed_down.SetLabel('%10s' % speed_down)
-            share.network_speed_up.SetLabel('%10s' % speed_up)
-        share.network_speed_down.SetLabel('%10s' % '0')
-        share.network_speed_up.SetLabel('%10s' % '0')
-        
+    def run(self):
+        """The dedicated thread to process raw packet, which is to process each raw packet and make it display in the Listctrl"""
+        num = 0
+        global pkt_lst
+        while self.isRunning:
+            try:
+                p = pkt_lst.get()
+
+            except:
+                continue
+            list_byte.append(p[0])
+            packet = Ether(p[0])
+            packet.time = p[1]
+            packet.num = num
+            packet = Packet_r(packet)
+            share.list_packet.append(packet)
+            if (share.flag_search == False):
+                l=packet.packet_to_info()
+                l.append(num)
+                self.AddPacket.emit(l)
+            share.list_tmp.append(packet.packet_to_info())
+            num += 1
+            if ((share.flag_select == False and share.flag_search == False)
+                    or (share.flag_select == True and share.flag_cancel == True
+                        and share.flag_search == False)):
+                # make the scroll bar update
+                self.Scroll.emit("True")
+                #ex.tableWidget.scrollToBottom()
+            # possible preprocess for TCP reassembly
+            if packet.haslayer(TCP):
+                seq = packet.packet[TCP].seq
+                if hasattr(packet.packet[TCP], "load"):
+                    seqlen = len(packet.packet[TCP].load)
+                else:
+                    seqlen = 0
+                share.tcp_seq[seq] = (packet.num, seqlen)
+
+            # possible preprocess for IP reassembly
+            if packet.haslayer(IP):
+                if packet.packet[IP].flags != 2:
+                    if (packet.packet[IP].src, packet.packet[IP].dst,
+                            packet.packet[IP].id) in share.ip_seq.keys():
+                        share.ip_seq[(packet.packet[IP].src, packet.packet[IP].dst,
+                                    packet.packet[IP].id)].append(
+                            (packet.num, packet.packet[IP].flags,
+                            packet.packet[IP].frag))
+                    else:
+                        share.ip_seq[(packet.packet[IP].src, packet.packet[IP].dst,
+                                    packet.packet[IP].id)] = [(packet.num, packet.packet[IP].flags,
+                                                                packet.packet[IP].frag)]
+
+
+    def stop(self):
+        self.isRunning = False
+        self.quit()
+        self.wait()
 
 if __name__ == "__main__":
-    # using class VAR instance 'share' to share variable among multiple threads in main process
-    lock = threading.Lock()
+    app = QtWidgets.QApplication(sys.argv)
     share = VAR()
     list_tmp = []
     while (len(list_tmp) <= 1):
@@ -894,8 +798,7 @@ if __name__ == "__main__":
         list_tmp = share.interfaces
     for i in range(len(share.interfaces)):
         share.mac_dict[share.interfaces[i]] = share.list_mac[i]
-
-    # using manager to share values between processes
+     # using manager to share values between processes
     manager = Manager()
     iface = manager.Value(c_char_p, "")
     pro = manager.Value(c_char_p, "")
@@ -907,7 +810,7 @@ if __name__ == "__main__":
     flag_dict['close'] = False
     flag_dict['max'] = True
     flag_dict['error'] = False
-    flag_dict['iface'] = ''
+    flag_dict['iface'] = share.interfaces[0]
     flag_dict['pro'] = ''
     flag_dict['src'] = ''
     flag_dict['sport'] = ''
@@ -917,27 +820,28 @@ if __name__ == "__main__":
     flag_dict['mac']=''
     flag_dict['up']=0
     flag_dict['down']=0
-    
+    list_byte=manager.list()
+    list_info=manager.list()
     # list to store and fetch packet
     pkt_lst = manager.Queue()
     p = Process(target=InfiniteProcess, name="InfiniteProcess", args=(flag_dict, pkt_lst))
     p.daemon = True
     p.start()
-    list_byte=manager.list()
-    list_info=manager.list()
-    p = Process(target=CurrentPktToInfo, name="CurrentPktToInfo", args=(list_byte,list_info,flag_dict))
-    p.daemon = True
-    p.start()
-    finish = False
-    process_list = [process, networkspeed]
-    thread_list = []
+    flag_dict["select"]=False
+    '''finish = False
+    process_list = [process]
+    thread_list = []'''
+    w = QtWidgets.QMainWindow()
+    ex = Ui_MainWindow()
+    '''
     for i in range(len(process_list)):
-        thread_list.append(threading.Thread(target=process_list[i]))
+        thread_list.append(Thread(target=process_list[i]))
         thread_list[i].setDaemon(1)
         thread_list[i].start()
-
-    app = wx.App()
-    frame = GUI(None, -1, 'sniffer v1.2', share.interfaces)
-
-    frame.Show()
-    app.MainLoop()
+    '''
+    
+    
+    ex.setupUi(w)
+    w.show()
+    sys.exit(app.exec_())
+    p.terminate()
