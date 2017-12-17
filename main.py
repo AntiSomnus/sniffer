@@ -238,7 +238,9 @@ class Ui_MainWindow(object):
   
         self.pro = QtWidgets.QLineEdit(self.centralwidget)
         self.pro.setFont(QFont('Consolas', 10, QFont.Light)) 
-        self.pro.setCompleter(QtWidgets.QCompleter(["ip","ip6","tcp","udp","arp","icmp","icmp6","igmp"]))
+        completer=QtWidgets.QCompleter(["ip","ip6","tcp","udp","arp","icmp","icmp6","igmp"])
+        completer.popup().setFont(QFont('Consolas', 10, QFont.Light))
+        self.pro.setCompleter(completer)
         self.pro.textChanged.connect(self.EvtTextPro)
     
 
