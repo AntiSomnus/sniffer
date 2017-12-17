@@ -95,7 +95,7 @@ class Packet_r():
                     pkt_pro = self.packet.lastlayer().underlayer.name
                 else:
                     pkt_pro = self.packet.lastlayer().name
-
+            pkt_pro=pkt_pro.split(" ")[0]
             info = [
                 str(self.packet.num),
                 self.packet.time, pkt_src, pkt_dst,
