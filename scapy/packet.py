@@ -380,7 +380,6 @@ class Packet(BasePacket, metaclass = Packet_metaclass):
             return self.raw_packet_cache
         p=b""
         for f in self.fields_desc:
-            #print(f.name)
             val = self.getfieldval(f.name)
             if isinstance(val, RawVal):
                 #sval = str(val)
@@ -642,9 +641,7 @@ class Packet(BasePacket, metaclass = Packet_metaclass):
         raw = s
         while s and flist:
             f = flist.pop()
-            #print(f, end = " = ")
             s,fval = f.getfield(self, s)
-            #print('fval')
             self.fields[f.name] = fval
         assert(raw.endswith(s))
         if s:

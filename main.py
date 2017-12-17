@@ -44,7 +44,6 @@ with open(os.devnull, 'w') as errf:
     with redirect_stderr(errf):
         from scapy.all import *
 
-
 """use pcap to capture in Windows"""
 conf.use_pcap = True
 
