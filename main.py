@@ -1,9 +1,9 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtWidgets import QMainWindow, QApplication, QWidget, QAction, QTableWidget,QTableWidgetItem,QVBoxLayout,QTabWidget,QProgressBar,QFileDialog
-from PyQt5.QtGui import QIcon,QFont
-from PyQt5.QtCore import pyqtSlot,QThread,Qt,pyqtSignal
+from PyQt5.QtWidgets import QMainWindow, QApplication, QWidget, QAction,QTableWidget,QTableWidgetItem,QVBoxLayout,QTabWidget,QProgressBar,QFileDialog,QCompleter
+from PyQt5.QtGui import QIcon,QFont,QCursor,QPixmap
+from PyQt5.QtCore import pyqtSlot,QThread,Qt,pyqtSignal,QPoint
 from PyQt5.QtWidgets import (QWidget, QHBoxLayout, QFrame, 
-    QSplitter, QStyleFactory, QApplication)
+    QSplitter, QStyleFactory, QApplication,QMenu)
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import Qt
 from threading import Thread
@@ -43,8 +43,7 @@ with open(os.devnull, 'w') as errf:
     """suppress all annoying warnings when loading scapy"""
     with redirect_stderr(errf):
         from scapy.all import *
-        import wx
-        import wx.adv
+
 
 """use pcap to capture in Windows"""
 conf.use_pcap = True
@@ -52,8 +51,7 @@ conf.use_pcap = True
 
 """ psutil is used to detect network speed"""
 import psutil
-""" pyshark for get brief info"""
-import pyshark
+
 """The following fuctions are used to handle tcp reassembly"""
 def packet_tcp_seq(seq):
     """Return tcp reassembly result"""
@@ -115,160 +113,175 @@ def packet_align(s):
         s[n] = " ".join(s[n])
     return s
 
+class SearchButton(QtWidgets.QPushButton):
+    def enterEvent(self,event):
+        self.setStyleSheet("border: 1px solid grey;background-color: white;")
+    def leaveEvent(self,event):
+        self.setStyleSheet("border: none;background-color: white;")
+
+class NewButton(QtWidgets.QPushButton):
+    def enterEvent(self,event):
+        self.setStyleSheet("background-color:rgb(225, 225, 225);color:blue")
+    def leaveEvent(self,event):
+        self.setStyleSheet("background-color: rgb(240, 240, 240);border-style: outset;border-width: 0px;color:blue")
+class Table(QtWidgets.QTableWidget):
+    def contextMenuEvent(self, event):
+        self.menu = QtWidgets.QMenu(self)
+        if ( len(self.selectedItems())> 6):
+            saveAction = QtWidgets.QAction('Save selected %d packets'%(len(self.selectedItems())/6), self)
+        else:
+            saveAction = QtWidgets.QAction('Save selected packet', self)
+        saveAction.triggered.connect(self.SaveReadablePackets)
+        self.menu.addAction(saveAction)
+        self.menu.setFont(QFont('Consolas', 10, QFont.Light))
+        self.menu.popup(QtGui.QCursor.pos())
+    def SaveReadablePackets(self):
+        a=[]
+        for i in self.selectedItems():
+            a.append(i.row())
+        filename = QFileDialog.getSaveFileName(filter="Text files (*.txt)")[0]
+        if (filename != ""):
+                f = open(filename, "w")
+                for i in set(a):
+                    if (share.flag_search==True):
+                        i=share.dict_search[i]
+                    f.write('No.' + str(share.list_packet[i].num) + '\nCapture Time:' + share.list_packet[i].time +
+                            '\tSave Time:' + datetime.now().strftime("%H:%M:%S") +
+                            '\n' + share.list_packet[i].show(dump=True) + '\n')
+                f.close()
+                # open the file as soon as the progress of saving is finished
+                os.system(filename)
+
+            
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
-        MainWindow.setObjectName("MainWindow")
-        MainWindow.resize(1000, 990)
-        self.centralwidget = QtWidgets.QWidget(MainWindow)
-        self.centralwidget.setObjectName("centralwidget")
-        MainWindow.setCentralWidget(self.centralwidget)
+        self.MainWindow=MainWindow
+        self.MainWindow.setObjectName("self.MainWindow")
 
-        """STATIC THING"""
+        self.MainWindow.resize(850, 800)
+        self.centralwidget = QtWidgets.QWidget(self.MainWindow)
+        self.MainWindow.setCentralWidget(self.centralwidget)
+        #using grid layout to put widgets 
+        #vlayout is used to expand items automatically
+        self.vlayout = QtWidgets.QVBoxLayout(self.centralwidget)
+        self.gridLayout = QtWidgets.QGridLayout()
+        self.gridLayout.setContentsMargins(0, 0, 0, 0)
+        '''1st line'''
+        #NIC label
         self.label_NIC = QtWidgets.QLabel(self.centralwidget)
-        self.label_NIC.setGeometry(QtCore.QRect(20, -10, 81, 71))
+        self.label_NIC.setText("NIC")
+        self.label_NIC.setFont(QFont('Consolas', 11, QFont.Bold))
 
-        font = QtGui.QFont()
-        font.setFamily("Courier New")
-        font.setPointSize(12)
-        font.setBold(True)
-        font.setWeight(75)
-        self.label_NIC.setFont(font)
-        self.label_NIC.setObjectName("label")
-        
-        
-
+        #NIC comboBox
         self.comboBox = QtWidgets.QComboBox(self.centralwidget)
-        self.comboBox.setGeometry(QtCore.QRect(80, 10, 681, 31))
-        font = QtGui.QFont()
-        font.setFamily("Courier New")
-        font.setPointSize(12)
-        font.setBold(True)
-        font.setWeight(75)
-        self.comboBox.setFont(font)
-        self.comboBox.setObjectName("comboBox")
+        self.comboBox.setFont(QFont('Consolas', 10, QFont.Light))
+        #add interface name into comboBox
         for i in share.interfaces:
             self.comboBox.addItem(i)
         self.comboBox.currentTextChanged.connect(self.EVT_COMBOBOX)
-
-
-        self.label_2 = QtWidgets.QLabel(self.centralwidget)
-        self.label_2.setGeometry(QtCore.QRect(20, 30, 81, 71))
-        font = QtGui.QFont()
-        font.setFamily("Courier New")
-        font.setPointSize(12)
-        font.setBold(True)
-        font.setWeight(75)
-        self.label_2.setFont(font)
-        self.label_2.setObjectName("label_2")
-        self.label_3 = QtWidgets.QLabel(self.centralwidget)
-        self.label_3.setGeometry(QtCore.QRect(380, 30, 81, 71))
-        font = QtGui.QFont()
-        font.setFamily("Courier New")
-        font.setPointSize(12)
-        font.setBold(True)
-        font.setWeight(75)
-        self.label_3.setFont(font)
-        self.label_3.setObjectName("label_3")
-        self.label_4 = QtWidgets.QLabel(self.centralwidget)
-        self.label_4.setGeometry(QtCore.QRect(200, 90, 36, 23))
-        font = QtGui.QFont()
-        font.setFamily("Courier New")
-        font.setPointSize(12)
-        font.setBold(True)
-        font.setWeight(75)
-        self.label_4.setFont(font)
-        self.label_4.setText("")
-        self.label_4.setObjectName("label_4")
-        self.label_5 = QtWidgets.QLabel(self.centralwidget)
-        self.label_5.setGeometry(QtCore.QRect(590, 30, 81, 71))
-        font = QtGui.QFont()
-        font.setFamily("Courier New")
-        font.setPointSize(12)
-        font.setBold(True)
-        font.setWeight(75)
-        self.label_5.setFont(font)
-        self.label_5.setObjectName("label_5")
-        self.label_6 = QtWidgets.QLabel(self.centralwidget)
-        self.label_6.setGeometry(QtCore.QRect(770, 30, 81, 71))
-        font = QtGui.QFont()
-        font.setFamily("Courier New")
-        font.setPointSize(12)
-        font.setBold(True)
-        font.setWeight(75)
-        self.label_6.setFont(font)
-        self.label_6.setObjectName("label_6")
-        self.label_7 = QtWidgets.QLabel(self.centralwidget)
-        self.label_7.setGeometry(QtCore.QRect(210, 30, 41, 71))
-        font = QtGui.QFont()
-        font.setFamily("Courier New")
-        font.setPointSize(12)
-        font.setBold(True)
-        font.setWeight(75)
-        self.label_7.setFont(font)
-        self.label_7.setObjectName("label_7")
-
+        #checkbox for max mod
+        self.checkBox = QtWidgets.QCheckBox(self.centralwidget)
+        self.checkBox.setFont(QFont('Consolas', 10, QFont.Light))
+        self.checkBox.setText("OC")
+        self.checkBox.setChecked(True)
+        self.checkBox.clicked.connect(self.EvtCheckBoxHigh)
+        self.checkBox.setToolTip("OC MODE:\nUsing a dedicated process to sniff continuously,\nwhich may enhance CPU usage.")
+        '''1st line layout'''
+        self.gridLayout.addWidget(self.label_NIC,0,0,1,1)
+        self.gridLayout.addWidget(self.comboBox,0,1,1,7)
+        self.gridLayout.addWidget(self.checkBox,0,8,1,1)
+        '''2nd line'''
+        #protocol label
+        self.label_pro = QtWidgets.QLabel(self.centralwidget)
+        self.label_pro.setFont(QFont('Consolas', 11, QFont.Bold))
+        self.label_pro.setText("PRO")
+        #source address label
+        self.label_src = QtWidgets.QLabel(self.centralwidget)
+        self.label_src.setFont(QFont('Consolas', 11, QFont.Bold))
+        self.label_src.setText("SRC")
+        #source port label
+        self.label_sport = QtWidgets.QLabel(self.centralwidget)
+        self.label_sport.setFont(QFont('Consolas', 11, QFont.Bold))
+        self.label_sport.setText("SPORT")
+        #destination address label
+        self.label_dst = QtWidgets.QLabel(self.centralwidget)
+        self.label_dst.setFont(QFont('Consolas', 11, QFont.Bold))
+        self.label_dst.setText("DST")
+        #destination port label
+        self.label_dport = QtWidgets.QLabel(self.centralwidget)
+        self.label_dport.setFont(QFont('Consolas', 11, QFont.Bold))
+        self.label_dport.setText("DPORT")
+  
         self.pro = QtWidgets.QLineEdit(self.centralwidget)
-        self.pro.setGeometry(QtCore.QRect(70, 50, 121, 31))
-        self.pro.setObjectName("lineEdit")
+        self.pro.setFont(QFont('Consolas', 10, QFont.Light)) 
+        self.pro.setCompleter(QtWidgets.QCompleter(["ip","ip6","tcp","udp","arp","icmp","igmp"]))
         self.pro.textChanged.connect(self.EvtTextPro)
+    
 
         self.src = QtWidgets.QLineEdit(self.centralwidget)
-        self.src.setGeometry(QtCore.QRect(250, 50, 121, 31))
-        self.src.setObjectName("lineEdit_2")
+        self.src.setFont(QFont('Consolas', 10, QFont.Light)) 
         self.src.textChanged.connect(self.EvtTextSrc)
 
         self.sport = QtWidgets.QLineEdit(self.centralwidget)
-        self.sport.setGeometry(QtCore.QRect(450, 50, 121, 31))
-        self.sport.setObjectName("lineEdit_3")
+        self.sport.setFont(QFont('Consolas', 10, QFont.Light)) 
         self.sport.textChanged.connect(self.EvtTextSport)
 
         self.dst = QtWidgets.QLineEdit(self.centralwidget)
-        self.dst.setGeometry(QtCore.QRect(640, 50, 121, 31))
-        self.dst.setObjectName("lineEdit_4")
+        self.dst.setFont(QFont('Consolas', 10, QFont.Light)) 
         self.dst.textChanged.connect(self.EvtTextDst)
 
         self.dport = QtWidgets.QLineEdit(self.centralwidget)
-        self.dport.setGeometry(QtCore.QRect(840, 50, 121, 31))
-        self.dport.setObjectName("lineEdit_5")
+        self.dport.setFont(QFont('Consolas', 10, QFont.Light)) 
         self.dport.textChanged.connect(self.EvtTextDport)
+        
+        
+        '''2nd line layout'''
+        self.gridLayout.addWidget(self.label_pro,1,0,1,1)
+        self.gridLayout.addWidget(self.pro,1,1,1,1)
+        self.gridLayout.addWidget(self.label_src,1,2,1,1)
+        self.gridLayout.addWidget(self.src,1,3,1,1)
+        self.gridLayout.addWidget(self.label_sport,1,4,1,1)
+        self.gridLayout.addWidget(self.sport,1,5,1,1)
+        self.gridLayout.addWidget(self.label_dst,1,6,1,1)
+        self.gridLayout.addWidget(self.dst,1,7,1,1)
+        self.gridLayout.addWidget(self.label_dport,1,8,1,1)
+        self.gridLayout.addWidget(self.dport,1,9,1,1)
 
-        self.checkBox = QtWidgets.QCheckBox(self.centralwidget)
-        self.checkBox.setGeometry(QtCore.QRect(20, 90, 61, 31))
-        font = QtGui.QFont()
-        font.setFamily("Courier New")
-        font.setPointSize(12)
-        font.setBold(True)
-        font.setWeight(75)
-        self.checkBox.setFont(font)
-        self.checkBox.setObjectName("checkBox")
-        self.lineEdit_6 = QtWidgets.QLineEdit(self.centralwidget)
-        self.lineEdit_6.setGeometry(QtCore.QRect(210, 90, 381, 31))
-        self.lineEdit_6.setObjectName("lineEdit_6")
+        
+        '''3rd line'''
+        self.searchbar =QtWidgets.QLineEdit(self.centralwidget)
+        self.searchbar.setPlaceholderText("Search")
+        self.searchbar.setFont(QFont('Consolas', 10, QFont.Light)) 
+        self.searchbar.setFrame(False)
+        self.searchbar.setFixedHeight(30)
+
+        self.searchbutton=SearchButton(self.centralwidget)
+        self.searchbutton.setIcon(QIcon("1.png"))
+        self.searchbutton.setStyleSheet("border: none;background-color: white;")
+        self.searchbutton.setFixedSize(30,30)
+        self.searchbutton.clicked.connect(self.Evtsearch)
         self.button = QtWidgets.QPushButton(self.centralwidget)
-        self.button.setGeometry(QtCore.QRect(640, 90, 121, 28))
-        self.button.setObjectName("pushButton")
+        self.button.setText("START")
+        self.button.setFont(QFont('Consolas', 10, QFont.Light)) 
         self.button.clicked.connect(self.EvtStart)
+        self.button.setFont(QFont('Consolas', 11, QFont.Light))
+        self.button.setFixedHeight(30)
 
-        self.save = QtWidgets.QPushButton(self.centralwidget)
-        self.save.setGeometry(QtCore.QRect(840, 90, 121, 28))
-        self.save.setObjectName("pushButton_2")
+        
 
-        """button: continue to reassemble"""
-        self.continue_reassemble_button = QtWidgets.QPushButton(self.centralwidget)
-        self.continue_reassemble_button.setGeometry(QtCore.QRect(200, 930, 300, 40))
-        self.continue_reassemble_button.setText("Continue to reassemble")
-        self.continue_reassemble_button.setFont(QFont('Consolas', 11, QFont.Light))
-        self.continue_reassemble_button.clicked.connect(self.EvtContinueReassemble)
-        self.continue_reassemble_button.hide()
 
-        self.save_reassemble_button = QtWidgets.QPushButton(self.centralwidget)
-        self.save_reassemble_button.setGeometry(QtCore.QRect(500, 930, 300, 40))
-        self.save_reassemble_button.setText("Save reassembly Result")
-        self.save_reassemble_button.setFont(QFont('Consolas', 11, QFont.Light))
-        self.save_reassemble_button.clicked.connect(self.EvtSaveReassemble)
-        self.save_reassemble_button.hide()
+        hbox = QtWidgets.QHBoxLayout()
+        hbox.setContentsMargins(0, 0, 0, 0)
+        hbox.addWidget(self.searchbar)
+        hbox.addWidget(self.searchbutton)
+        hbox.setSpacing(0)
+        self.searchbar.returnPressed.connect(self.Evtsearch)
+
+        self.gridLayout.addLayout(hbox,2,0,1,10)
+        self.gridLayout.addWidget(self.button,0,9,1,1)
+        
         """table """
-        self.tableWidget = QtWidgets.QTableWidget(self.centralwidget)
+        self.tableWidget = Table(self.centralwidget)
         self.tableWidget.verticalHeader().setDefaultSectionSize(25)
         self.tableWidget.horizontalHeader().setFont(QFont('Consolas', 11, QFont.Light))
         self.tableWidget.setSizeAdjustPolicy(
@@ -278,26 +291,30 @@ class Ui_MainWindow(object):
         self.tableWidget.setHorizontalHeaderLabels(['No.', 'Time', 'Source address', 'Destination address', 'Length','Protocol'])
         self.tableWidget.setColumnWidth(0,60)
         self.tableWidget.setColumnWidth(1,100)
-        self.tableWidget.setColumnWidth(2,280)
-        self.tableWidget.setColumnWidth(3,280)
+        self.tableWidget.setColumnWidth(2,240)
+        self.tableWidget.setColumnWidth(3,240)
         self.tableWidget.setColumnWidth(4,75)
-        self.tableWidget.setColumnWidth(5,145)
+        self.tableWidget.setColumnWidth(5,90)
         self.tableWidget.setShowGrid(False)
         self.tableWidget.setFont(QFont('Consolas', 10, QFont.Light))
         
         self.tableWidget.itemSelectionChanged.connect(self.EvtSelect)
         self.tableWidget.itemDoubleClicked.connect(self.cancel)
+
         self.tableWidget.setSelectionBehavior(QTableWidget.SelectRows)
         self.tableWidget.setMouseTracking(True)
         self.tableWidget.cellEntered.connect(self.handleItemEntered)
         self.tableWidget.verticalHeader().setVisible(False)
+        self.tableWidget.horizontalHeader().setDefaultAlignment(Qt.AlignLeft)
 
-
-        self.th=NewThread()
-        self.th.AddPacket.connect(self.ppp)
+        self.th=ProcessingThread()
+        self.th.AddPacket.connect(self.AddPacketToTable)
         self.th.Scroll.connect(self.ScrollToEnd)
         self.th.start()
 
+        self.th2=NetworkspeedThread()
+        self.th2.SetNetworkSpeed.connect(self.SetSpeedOnStatusBar)
+        self.th2.start()
         """tab1"""
         self.tabWidget = QtWidgets.QTabWidget(self.centralwidget)
         self.tabWidget.setMinimumHeight(50)
@@ -308,58 +325,127 @@ class Ui_MainWindow(object):
         self.tabWidget_2.setFont(QFont('Consolas', 10, QFont.Light))
 
         """split window"""
-        self.horizontalLayoutWidget = QtWidgets.QWidget(self.centralwidget)
-        self.horizontalLayoutWidget.setGeometry(QtCore.QRect(0, 130,1000, 800))
+
         
-        hbox = QtWidgets.QHBoxLayout(self.horizontalLayoutWidget)
+        hbox = QtWidgets.QHBoxLayout()
         hbox.setContentsMargins(0, 0, 0, 0)
      
         splitter = QSplitter(Qt.Vertical)
         splitter.addWidget(self.tableWidget)
         splitter.addWidget(self.tabWidget)
         splitter.addWidget(self.tabWidget_2)
-        splitter.setSizes([300,300,300])
+        splitter.setSizes([230,225,225])
         hbox.addWidget(splitter)
+        self.gridLayout.addLayout(hbox,3,0,5,10)
+        self.gridLayout.setRowMinimumHeight(3,690)
+        self.vlayout.addLayout(self.gridLayout)
+        spacerItem = QtWidgets.QSpacerItem(20, 245, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
+        self.vlayout.addItem(spacerItem)
 
+        """button: continue to reassemble"""
+        self.continue_reassemble_button = NewButton(self.tabWidget_2)
+        self.continue_reassemble_button.setGeometry(QtCore.QRect(500,-4,300,30))
+        self.continue_reassemble_button.setText("Continue to reassemble")
+        self.continue_reassemble_button.setFont(QFont('Consolas', 11, QFont.Light))
+        self.continue_reassemble_button.clicked.connect(self.EvtContinueReassemble)
+        self.continue_reassemble_button.setStyleSheet("background-color: rgb(240, 240, 240);border-style: outset;border-width: 0px;color:blue")
+        self.continue_reassemble_button.hide()
 
-        self.menubar = QtWidgets.QMenuBar(MainWindow)
-        self.menubar.setGeometry(QtCore.QRect(0, 0, 800, 26))
-        self.menubar.setObjectName("menubar")
-        MainWindow.setMenuBar(self.menubar)
-        self.statusbar = QtWidgets.QStatusBar(MainWindow)
-        self.statusbar.setFixedHeight(20)
+        
+
+        self.statusbar = QtWidgets.QStatusBar(self.MainWindow)
+        self.statusbar.setFixedHeight(30)
         self.statusbar.setObjectName("statusbar")
-        MainWindow.setStatusBar(self.statusbar)
+        self.MainWindow.setStatusBar(self.statusbar)
 
+        self.speedlabel=QtWidgets.QLabel(self.statusbar)
+        self.speedlabel.setText("")
+        self.speedlabel.setFixedWidth(350)
+        self.speedlabel.setFont(QFont('Consolas', 10, QFont.Light))
         """progressbar"""
-        self.pbar=QProgressBar()
+        self.pbar=QProgressBar(self.statusbar)
         self.pbar.setValue(0)
-        self.pbar.setFixedWidth(1000)
-        self.statusbar.addPermanentWidget(self.pbar)
-        self.pbar.hide()
-        self.retranslateUi(MainWindow)
+        self.pbar.setFixedWidth(150)
+        self.pbar.setGeometry(QtCore.QRect(680, 0, 300, 28))
 
+        self.save_reassemble_button = NewButton(self.statusbar)
+        self.save_reassemble_button.setGeometry(QtCore.QRect(275, 0, 300, 28))
+        self.save_reassemble_button.setText("Save reassembly Result")
+        self.save_reassemble_button.setStyleSheet("background-color: rgb(240, 240, 240);border-style: outset;border-width: 0px;color:blue")
+        self.save_reassemble_button.setFont(QFont('Consolas', 11, QFont.Light))
+        self.save_reassemble_button.clicked.connect(self.EvtSaveReassemble)
+        self.save_reassemble_button.hide()
+
+        self.pbar.hide()
+        #self.retranslateUi()
+        
+        self.title='Sniffer V2.0'
+        self.MainWindow.setWindowTitle(self.title)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
+    def CustomFont(self,num,style):
+        return QFont('Consolas', num, style)
+    def EvtCheckBoxHigh(self):
+        """The event for selecting the mode of mulitiprocessing for the higher-end performance, which is to save it for filter(default:on)"""
+        global flag_dict
+        flag_dict['max'] = self.checkBox.isChecked()
+
+    def Evtsearch(self):
+        """The event for entering keywords in search bar and using 'ENTER' to proceed, which is to show the results containing keywords.
+           The packet list shown in GUI will immediately stop updating while the backend is still sniffering.
+           In other words, one can only search the packets sniffed according to what have been sniffed.
+           Clear the search bar and all packets sniffed in the backend will start updating again, even in the period of seaching"""
+        self.tableWidget.setRowCount(0)
+        share.flag_search = True
+        keyword = self.searchbar.text()
+        after_search_index=0
+        for i in range(len(share.list_tmp)):
+            try:
+                # keywords can exist in raw/utf-8/GB2312 packet
+                sentence = share.list_packet[i].packet_to_all().lower()
+                sentence += share.list_packet[i].packet_to_load_gb().lower()
+                sentence += share.list_packet[i].packet_to_load_utf8().lower()
+            except:
+                pass
+            if (keyword.lower() in sentence):
+                share.dict_search[after_search_index]=i
+                self.tableWidget.insertRow(after_search_index)
+                for j in range(6):
+                    item= QTableWidgetItem(share.list_tmp[i][j])
+                    self.tableWidget.setItem(after_search_index,j, item)
+                after_search_index+=1
+        if (keyword == ""):
+            # if nothing is in the searchbar, return the whole result and keep sniffering
+            share.flag_search = False
+            share.flag_select = False
+
+       
+    def SetSpeedOnStatusBar(self,l):
+        s_up=l[0]
+        s_down=l[1]
+        if s_up // 1024 < 1:
+            speed_up = str(round(s_up, 1)) + "Bps"
+        elif s_up // 1024 ** 2 < 1:
+            speed_up = str(round(s_up / 1024, 1)) + 'KBps'
+        elif s_up // 1024 ** 3 < 1:
+            speed_up = str(round(s_up / 1024 ** 2, 1)) + "MBps"
+        if s_down // 1024 < 1:
+            speed_down = str(round(s_down, 1)) + "Bps"
+        elif s_up // 1024 ** 2 < 1:
+            speed_down = str(round(s_down / 1024, 1)) + 'KBps'
+        elif s_up // 1024 ** 3 < 1:
+            speed_down = str(round(s_down / 1024 ** 2, 1)) + "MBps"
+        title='  ↓ %s  ↑ %s' % (speed_down.rjust(10),speed_up.rjust(10))
+        self.speedlabel.setText(title)
+        
     def ScrollToEnd(self,l):
         self.tableWidget.scrollToBottom()
-    def ppp(self,l):
+    def AddPacketToTable(self,l):
         num=l[-1]
         self.tableWidget.insertRow(num)
         for i in range(6):
             item= QTableWidgetItem(l[i])
             self.tableWidget.setItem(num,i, item)
-    def retranslateUi(self, MainWindow):
-        _translate = QtCore.QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
-        self.label_NIC.setText(_translate("MainWindow", "NIC"))
-        self.label_2.setText(_translate("MainWindow", "PRO"))
-        self.label_3.setText(_translate("MainWindow", "SPORT"))
-        self.label_5.setText(_translate("MainWindow", "DST"))
-        self.label_6.setText(_translate("MainWindow", "DPORT"))
-        self.label_7.setText(_translate("MainWindow", "SRC"))
-        self.checkBox.setText(_translate("MainWindow", "MAX"))
-        self.button.setText(_translate("MainWindow", "START"))
-        self.save.setText(_translate("MainWindow", "SAVE"))
+
     def EVT_COMBOBOX(self):
         """The event for selecting the Network Interface in Combobox, which is to save it for filter(default:all)"""
         global flag_dict
@@ -396,15 +482,20 @@ class Ui_MainWindow(object):
         flag_dict['start'] = not flag_dict['start']
         if (flag_dict['start']):
             self.button.setText('Stop')
+            title=self.title+" - "+flag_dict["iface"]+" - "+InputToFilter(flag_dict)
+            self.MainWindow.setWindowTitle(title)
         else:
             self.button.setText('Start')
+            self.MainWindow.setWindowTitle(self.title)
 
     def handleItemEntered(self,row,column):
+        """move cursor on item"""
         '''for i in range(self.tabWidget.count()):
             self.tabWidget.removeTab(i)'''
         
 
     def EvtSelect(self):
+        QtCore.QCoreApplication.processEvents()
         try:
             self.continue_reassemble_button.hide()
             self.save_reassemble_button.hide()
@@ -413,6 +504,11 @@ class Ui_MainWindow(object):
             pass
         for i in self.tableWidget.selectedItems():
             val=i.row()
+        if (share.flag_search==True):
+            try:
+                val=share.dict_search[val]
+            except UnboundLocalError:
+                return
         share.flag_select = True
         share.flag_cancel = False
         
@@ -423,8 +519,10 @@ class Ui_MainWindow(object):
             self.tabWidget.removeTab(0)
         for i in range(self.tabWidget_2.count()):
             self.tabWidget_2.removeTab(0)
-        
-        layerlist = share.list_packet[val].packet_to_layerlist()
+        try:
+            layerlist = share.list_packet[val].packet_to_layerlist()
+        except UnboundLocalError:
+            return 
 
         #single packet infomation
         for i in layerlist:
@@ -575,10 +673,12 @@ class Ui_MainWindow(object):
             self.CreateNewTab(self.tabWidget_2,"TCP reassemble UTF-8", s_utf8)
             self.CreateNewTab(self.tabWidget_2,"TCP reassemble GB2312", s_gb)
     def EvtContinueReassemble (self):
-        if (self.final_ip_seq==""):
+        self.continue_reassemble_button.hide()
+        if (self.final_tcp_seq!=""):
             self.ShowTcpResult()
-        else:
+        elif (self.final_ip_seq!=""):
             self.ShowIpResult()
+        
     def EvtSaveReassemble(self):
         self.file_content = b""
         self.pbar.show()
@@ -609,6 +709,8 @@ class Ui_MainWindow(object):
                 self.pbar.setValue(int(current_num/total_num*100))
         self.pbar.hide()
         filename = QFileDialog.getSaveFileName()[0]
+        if (filename==""):
+            return
         try:
             """if byte"""
             f = open(filename, "wb")
@@ -629,99 +731,8 @@ class Ui_MainWindow(object):
             
     def cancel(self):
         share.flag_cancel = True
-'''
-def process():
-    """The dedicated thread to process raw packet, which is to process each raw packet and make it display in the Listctrl"""
-    num = 0
-    global pkt_lst
-    while (True):
-        try:
-            p = pkt_lst.get()
 
-        except:
-            continue
-        list_byte.append(p[0])
-        packet = Ether(p[0])
-        packet.time = p[1]
-        packet.num = num
-        
-        packet = Packet_r(packet)
-        share.list_packet.append(packet)
-        if (share.flag_search == False):
-            ex.tableWidget.insertRow(num)
-            l=packet.packet_to_info()
-            for i in range(6):
-                item= QTableWidgetItem(l[i])
-                ex.tableWidget.setItem(num,i, item)
-        share.list_tmp.append(packet.packet_to_info())
-        num += 1
-        if ((share.flag_select == False and share.flag_search == False)
-                or (share.flag_select == True and share.flag_cancel == True
-                    and share.flag_search == False)):
-            # make the scroll bar update
-            ex.tableWidget.scrollToBottom()
-        # possible preprocess for TCP reassembly
-        if packet.haslayer(TCP):
-            seq = packet.packet[TCP].seq
-            if hasattr(packet.packet[TCP], "load"):
-                seqlen = len(packet.packet[TCP].load)
-            else:
-                seqlen = 0
-            share.tcp_seq[seq] = (packet.num, seqlen)
-
-        # possible preprocess for IP reassembly
-        if packet.haslayer(IP):
-            if packet.packet[IP].flags != 2:
-                if (packet.packet[IP].src, packet.packet[IP].dst,
-                        packet.packet[IP].id) in share.ip_seq.keys():
-                    share.ip_seq[(packet.packet[IP].src, packet.packet[IP].dst,
-                                  packet.packet[IP].id)].append(
-                        (packet.num, packet.packet[IP].flags,
-                         packet.packet[IP].frag))
-                else:
-                    share.ip_seq[(packet.packet[IP].src, packet.packet[IP].dst,
-                                  packet.packet[IP].id)] = [(packet.num, packet.packet[IP].flags,
-                                                             packet.packet[IP].frag)]
-'''
-
-def InfiniteProcess(flag_dict, pkt_lst):
-    """The dedicated process to sniff, which is to get the iface and filter and then starting sniffing"""
-    while (flag_dict['close'] == False):
-        sleep(0.1)
-        if (flag_dict['start'] == True and flag_dict['error'] == False):
-            
-            sleep(0.1)
-            f = ""
-            if (flag_dict['close'] == False):
-                for key in flag_dict.keys():
-                    if (flag_dict[key] != ''):
-                        if (key == 'pro'):
-                            f += " and " + flag_dict['pro']
-                        elif (key == 'src' or key == 'dst'):
-                            f += " and " + key + " " + flag_dict[key]
-                        elif (key == 'sport'):
-                            f += " and src port " + flag_dict['sport']
-                        elif (key == 'dport'):
-                            f += " and dst port " + flag_dict['dport']
-                f = f[5:]
-            if (f == ""):
-                a = sniff(
-                    iface=flag_dict['iface'],
-                    store=0,
-                    pkt_lst=pkt_lst,
-                    flag_dict=flag_dict,
-                    stopperTimeout=0.2,
-                )
-            else:
-                a = sniff(
-                    iface=flag_dict['iface'],
-                    store=0,
-                    filter=f,
-                    pkt_lst=pkt_lst,
-                    flag_dict=flag_dict,
-                    stopperTimeout=0.2,
-                )
-class NewThread(QThread):
+class ProcessingThread(QThread):
     AddPacket = pyqtSignal(list)
     Scroll    = pyqtSignal(str)
     def __init__(self, parent=None):
@@ -784,6 +795,85 @@ class NewThread(QThread):
         self.isRunning = False
         self.quit()
         self.wait()
+class  NetworkspeedThread(QThread):
+    SetNetworkSpeed = pyqtSignal(list)
+    def __init__(self, parent=None):
+        QThread.__init__(self, parent=parent)
+        self.isRunning = True
+
+    def run(self):
+        """The dedicated thread to caculate networkspeed"""
+        s_up=0.00
+        s_down=0.00
+        while (share.mac==''):
+            sleep(0.5)
+        t0 = time.time()
+        macname=share.dict_mac2name[share.mac]
+        upload=psutil.net_io_counters(pernic=True)[macname][0]
+        download=psutil.net_io_counters(pernic=True)[macname][1]
+        up_down=(upload,download)
+        while self.isRunning:
+            last_up_down = up_down
+            upload=psutil.net_io_counters(pernic=True)[macname][0]
+            download=psutil.net_io_counters(pernic=True)[macname][1]
+            t1 = time.time()
+            up_down = (upload,download)
+            try:
+                s_up, s_down = [(now - last) / (t1 - t0) 
+                        for now,last in zip(up_down, last_up_down)]             
+                t0 = time.time()
+            except:
+                pass
+
+            time.sleep(0.5) 
+            self.SetNetworkSpeed.emit([int(s_up),int(s_down)])
+
+    def stop(self):
+        self.isRunning = False
+        self.quit()
+        self.wait()
+
+
+def InputToFilter(flag_dict):
+    f = ""
+    if (flag_dict['close'] == False):
+        for key in flag_dict.keys():
+            if (flag_dict[key] != ''):
+                if (key == 'pro'):
+                    f += " and " + flag_dict['pro']
+                elif (key == 'src' or key == 'dst'):
+                    f += " and " + key + " " + flag_dict[key]
+                elif (key == 'sport'):
+                    f += " and src port " + flag_dict['sport']
+                elif (key == 'dport'):
+                    f += " and dst port " + flag_dict['dport']
+        f = f[5:]
+    return f
+
+def InfiniteProcess(flag_dict, pkt_lst):
+    """The dedicated process to sniff, which is to get the iface and filter and then starting sniffing"""
+    while (flag_dict['close'] == False):
+        sleep(0.1)
+        if (flag_dict['start'] == True and flag_dict['error'] == False):
+            sleep(0.1)
+            f=InputToFilter(flag_dict)
+            if (f == ""):
+                a = sniff(
+                    iface=flag_dict['iface'],
+                    store=0,
+                    pkt_lst=pkt_lst,
+                    flag_dict=flag_dict,
+                    stopperTimeout=0.2,
+                )
+            else:
+                a = sniff(
+                    iface=flag_dict['iface'],
+                    store=0,
+                    filter=f,
+                    pkt_lst=pkt_lst,
+                    flag_dict=flag_dict,
+                    stopperTimeout=0.2,
+                )
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
@@ -828,17 +918,10 @@ if __name__ == "__main__":
     p.daemon = True
     p.start()
     flag_dict["select"]=False
-    '''finish = False
-    process_list = [process]
-    thread_list = []'''
+
     w = QtWidgets.QMainWindow()
     ex = Ui_MainWindow()
-    '''
-    for i in range(len(process_list)):
-        thread_list.append(Thread(target=process_list[i]))
-        thread_list[i].setDaemon(1)
-        thread_list[i].start()
-    '''
+ 
     
     
     ex.setupUi(w)

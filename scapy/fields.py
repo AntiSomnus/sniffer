@@ -909,7 +909,7 @@ class FlagsField(BitField):
             i += 1
             x >>= 1
         if self.multi:
-            r = "+".join(r)
+            r = ", ".join(r)
         return r
     def i2dict(self, pkt, x): # Potential compatibility issue for older code. And fields to conf.noenum for old behaviour
         if self.multi:
