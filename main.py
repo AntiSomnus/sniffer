@@ -1,9 +1,9 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import QMainWindow, QApplication, QWidget, QAction,QTableWidget,QTableWidgetItem,QVBoxLayout,QTabWidget,QProgressBar,QFileDialog,QCompleter
-from PyQt5.QtGui import QIcon,QFont,QCursor,QPixmap
+from PyQt5.QtGui import QIcon,QFont,QCursor,QPixmap,QColor,QKeySequence
 from PyQt5.QtCore import pyqtSlot,QThread,Qt,pyqtSignal,QPoint
-from PyQt5.QtWidgets import (QWidget, QHBoxLayout, QFrame, 
-    QSplitter, QStyleFactory, QApplication,QMenu)
+from PyQt5.QtWidgets import (QWidget, QHBoxLayout, QFrame,QAbstractItemView,
+    QSplitter, QStyleFactory, QApplication,QMenu,QShortcut)
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import Qt
 from threading import Thread
@@ -280,7 +280,7 @@ class Ui_MainWindow(object):
         self.searchbar.setFixedHeight(30)
 
         self.searchbutton=SearchButton(self.centralwidget)
-        self.searchbutton.setIcon(QIcon("1.png"))
+        self.searchbutton.setIcon(QIcon(os.path.dirname(os.path.realpath(__file__))+"\\icons\\searchicon.png"))
         self.searchbutton.setStyleSheet("border: none;background-color: white;")
         self.searchbutton.setFixedSize(30,30)
         self.searchbutton.clicked.connect(self.Evtsearch)
@@ -300,7 +300,7 @@ class Ui_MainWindow(object):
         hbox.addWidget(self.searchbutton)
         hbox.setSpacing(0)
         self.searchbar.returnPressed.connect(self.Evtsearch)
-
+        
         self.gridLayout.addLayout(hbox,2,0,1,10)
         self.gridLayout.addWidget(self.button,0,9,1,1)
         
@@ -313,12 +313,15 @@ class Ui_MainWindow(object):
         self.tableWidget.setMinimumHeight(50)
         self.tableWidget.setColumnCount(6)
         self.tableWidget.setHorizontalHeaderLabels(['No.', 'Time', 'Source address', 'Destination address', 'Length','Protocol'])
+        
         self.tableWidget.setColumnWidth(0,60)
         self.tableWidget.setColumnWidth(1,100)
         self.tableWidget.setColumnWidth(2,240)
         self.tableWidget.setColumnWidth(3,240)
         self.tableWidget.setColumnWidth(4,75)
         self.tableWidget.setColumnWidth(5,90)
+        self.tableWidget.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.tableWidget.horizontalHeader().setStretchLastSection(True)
         self.tableWidget.setShowGrid(False)
         self.tableWidget.setFont(QFont('Consolas', 10, QFont.Light))
         
@@ -358,7 +361,7 @@ class Ui_MainWindow(object):
         splitter.addWidget(self.tableWidget)
         splitter.addWidget(self.tabWidget)
         splitter.addWidget(self.tabWidget_2)
-        splitter.setSizes([230,225,225])
+        splitter.setSizes([232,225,225])
         hbox.addWidget(splitter)
         self.gridLayout.addLayout(hbox,3,0,5,10)
         self.gridLayout.setRowMinimumHeight(3,690)
@@ -401,13 +404,18 @@ class Ui_MainWindow(object):
         self.save_reassemble_button.hide()
 
         self.pbar.hide()
-        #self.retranslateUi()
-        
+        #color mode default on
+        self.colorModeStatus=True
+        self.colorshortcut=QShortcut(QKeySequence("Ctrl+F"),self.centralwidget)
+        self.colorshortcut.activated.connect(self.ColorMode)
         self.title='Sniffer V2.0'
+        self.MainWindow.setWindowIcon(QIcon(os.path.dirname(os.path.realpath(__file__))+"\\icons\\icon.png"))
         self.MainWindow.setWindowTitle(self.title)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
-    def CustomFont(self,num,style):
-        return QFont('Consolas', num, style)
+    
+    def ColorMode(self):
+        self.colorModeStatus=not self.colorModeStatus
+
     def EvtCheckBoxHigh(self):
         """The event for selecting the mode of mulitiprocessing for the higher-end performance, which is to save it for filter(default:on)"""
         global flag_dict
@@ -463,12 +471,16 @@ class Ui_MainWindow(object):
         
     def ScrollToEnd(self,l):
         self.tableWidget.scrollToBottom()
+
     def AddPacketToTable(self,l):
         num=l[-1]
         self.tableWidget.insertRow(num)
         for i in range(6):
             item= QTableWidgetItem(l[i])
+            if (self.colorModeStatus):
+                item.setBackground(QtGui.QColor(l[-2][0],l[-2][1],l[-2][2]))
             self.tableWidget.setItem(num,i, item)
+
 
     def EVT_COMBOBOX(self):
         """The event for selecting the Network Interface in Combobox, which is to save it for filter(default:all)"""
@@ -507,6 +519,10 @@ class Ui_MainWindow(object):
         if (flag_dict['start']):
             self.button.setText('Stop')
             title=self.title+" - "+flag_dict["iface"]+" - "+InputToFilter(flag_dict)
+            if (flag_dict["max"]):
+                title+=" - OC MODE: ON"
+            else:
+                title+=" - OC MODE: OFF"
             self.MainWindow.setWindowTitle(title)
         else:
             self.button.setText('Start')
@@ -583,7 +599,10 @@ class Ui_MainWindow(object):
                 return
             
             #First give the information of reassemble
-            s = "No. " + str(val) + " can be TCP assembled by "
+            s = "No. " + str(val) + " can be TCP assembled by following %d packet"%len(self.final_tcp_seq)
+            if (len(self.final_tcp_seq)>1):
+                s+="s"
+            s+=":\n"
             for i in self.final_tcp_seq:
                 QtCore.QCoreApplication.processEvents()
                 s = s + "No. " + str(i[1][0]) + ", "
@@ -607,7 +626,10 @@ class Ui_MainWindow(object):
         if (self.final_ip_seq != "" and len(self.final_ip_seq) != 1):  # Satisify IP reassembly
             if (self.final_ip_seq == 'Too large to assemble'):  # Too big for memory
                 self.CreateNewTab(self.tabWidget_2, "IP reassemble failed", self.final_ip_seq)
-            s = "No. " + str(val) + " can be IP assembled by "
+            s = "No. " + str(val) + " can be IP assembled by following %d packet"%len(self.final_ip_seq)
+            if (len(self.final_ip_seq)>1):
+                s+="s"
+            s+=":\n"
             for i in self.final_ip_seq:
                 QtCore.QCoreApplication.processEvents()
                 s = s + "No. " + str(i[0]) + ", "
@@ -660,7 +682,10 @@ class Ui_MainWindow(object):
             for i in response.headers:
                 QtCore.QCoreApplication.processEvents()
                 h += str(i) + " : " + str(response.headers[i]) + "\n"
-            s = b"No. " + bytes(str(val), 'utf8') + b" can be HTTP assembled by "
+            s = b"No. " + bytes(str(val), 'utf8') + b" can be HTTP assembled by following %d packet"%len(self.final_tcp_seq)
+            if (len(self.final_tcp_seq)>1):
+                s+="s"
+            s+=":\n"
             for i in self.final_tcp_seq:
                 QtCore.QCoreApplication.processEvents()
                 s = s + b"No. " + bytes(str(i[1][0]), 'utf8') + b", "
@@ -784,6 +809,7 @@ class ProcessingThread(QThread):
             share.list_packet.append(packet)
             if (share.flag_search == False):
                 l=packet.packet_to_info()
+                l.append(packet.getColor())
                 l.append(num)
                 self.AddPacket.emit(l)
             share.list_tmp.append(packet.packet_to_info())
