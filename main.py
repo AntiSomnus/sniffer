@@ -31,7 +31,11 @@ from contextlib import contextmanager
 
 @contextmanager
 def redirect_stderr(new_target):
-    """suppress all warnings to keep console clean"""
+    """Suppress all warnings to keep console clean.
+
+    """    
+
+    
     import sys
     old_target, sys.stderr = sys.stderr, new_target
     try:
@@ -40,11 +44,17 @@ def redirect_stderr(new_target):
         sys.stderr = old_target
 
 with open(os.devnull, 'w') as errf:
-    """suppress all annoying warnings when loading scapy"""
+    """Suppress all annoying warnings when loading scapy
+
+    Scapy will show a lot of annoying warnings when loading.
+
+    This function is going to suppress all of them.
+
+    """ 
     with redirect_stderr(errf):
         from scapy.all import *
 
-"""use pcap to capture in Windows"""
+"""Use pcap to capture in Windows"""
 conf.use_pcap = True
 
 
@@ -52,8 +62,11 @@ conf.use_pcap = True
 import psutil
 
 """The following fuctions are used to handle tcp reassembly"""
+
+
 def packet_tcp_seq(seq):
-    """Return tcp reassembly result"""
+
+
     seq_keys = list(share.tcp_seq.keys())
     seq_keys.sort()
     position = seq_keys.index(seq)
@@ -65,7 +78,17 @@ def packet_tcp_seq(seq):
     return final_tcp_seq
 
 def packet_tcp_seq_forward(seq_keys, position, p):
-    """Return tcp reassembly forward result"""
+    """Return tcp reassembly forward result
+
+    Args:
+        seq_keys: [description]
+        position: [description]
+        p: [description]
+
+    Returns:
+        [description]
+    [type]
+    """    
     flag = True
     total_len = len(seq_keys)
     remain_len = total_len - 1
@@ -85,6 +108,7 @@ def packet_tcp_seq_forward(seq_keys, position, p):
 
 def packet_tcp_seq_backward(seq_keys, position, p):
     """Return tcp reassembly backward result"""
+    
     flag = True
     remain_len = position
     while position >= 1:
@@ -149,7 +173,8 @@ class Table(QtWidgets.QTableWidget):
                             '\n' + share.list_packet[i].show(dump=True) + '\n')
                 f.close()
                 # open the file as soon as the progress of saving is finished
-                os.system(filename)
+                t=Thread(target=self.OpenFile,args=(filename,))
+                t.start()
 
             
 class Ui_MainWindow(object):
@@ -720,6 +745,9 @@ class Ui_MainWindow(object):
             f = open(filename, "w")
             f.write(self.file_content)
             f.close()
+        t=Thread(target=self.OpenFile,args=(filename,))
+        t.start()
+    def OpenFile(self,filename):
         os.system(filename)
     def CreateNewTab(self,tab,title,content):
         a=QtWidgets.QTextBrowser() 
