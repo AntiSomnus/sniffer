@@ -26,6 +26,8 @@ from httpconverter import HttpConverter
 #redirect all output to files in order to keep the console clean
 #filename  = open("outputfile.txt",'w')
 #sys.stdout = filename
+"""The library to convert ANSI escape code to html css"""
+import ansiconv
 
 from contextlib import contextmanager
 
@@ -368,7 +370,7 @@ class Ui_MainWindow(object):
         self.gridLayout.addLayout(hbox,3,0,5,10)
         self.gridLayout.setRowMinimumHeight(3,690)
         self.vlayout.addLayout(self.gridLayout)
-        spacerItem = QtWidgets.QSpacerItem(20, 245, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
+        spacerItem = QtWidgets.QSpacerItem(20, 245, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
         self.vlayout.addItem(spacerItem)
 
         """button: continue to reassemble"""
@@ -406,6 +408,7 @@ class Ui_MainWindow(object):
         self.save_reassemble_button.hide()
 
         self.pbar.hide()
+        self.http_content=""
         #color mode default on
         self.colorModeStatus=True
         self.colorshortcut=QShortcut(QKeySequence("Ctrl+F"),self.centralwidget)
@@ -443,8 +446,11 @@ class Ui_MainWindow(object):
             if (keyword.lower() in sentence):
                 share.dict_search[after_search_index]=i
                 self.tableWidget.insertRow(after_search_index)
+                color_list=share.list_packet[int(share.list_tmp[i][0])].getColor()
                 for j in range(6):
                     item= QTableWidgetItem(share.list_tmp[i][j])
+                    if (self.colorModeStatus):
+                        item.setBackground(QtGui.QColor(color_list[0],color_list[1],color_list[2]))
                     self.tableWidget.setItem(after_search_index,j, item)
                 after_search_index+=1
         if (keyword == ""):
@@ -522,9 +528,9 @@ class Ui_MainWindow(object):
             self.button.setText('Stop')
             title=self.title+" - "+flag_dict["iface"]+" - "+InputToFilter(flag_dict)
             if (flag_dict["max"]):
-                title+=" - OC MODE: ON"
+                title+=" - OC: ON"
             else:
-                title+=" - OC MODE: OFF"
+                title+=" - OC: OFF"
             self.MainWindow.setWindowTitle(title)
         else:
             self.button.setText('Start')
@@ -553,9 +559,10 @@ class Ui_MainWindow(object):
                 return
         share.flag_select = True
         share.flag_cancel = False
-        
+        self.val=val
         self.final_tcp_seq = ""
         self.final_ip_seq = ""
+        self.http_content=""
         count=self.tabWidget.count()
         for i in range(self.tabWidget.count()):
             self.tabWidget.removeTab(0)
@@ -574,8 +581,13 @@ class Ui_MainWindow(object):
             for key in i[1]:
                 s = s + "%-10s%s\n" % ((key[0].upper()+key[1:]+":"), i[1][key])
             self.CreateNewTab(self.tabWidget,i[0],s)
+        try:
+            self.CreateNewTab(self.tabWidget, "Load in UTF-8",share.list_packet[val].packet_to_load_utf8())
+            self.CreateNewTab(self.tabWidget, "Load in GB2312",share.list_packet[val].packet_to_load_gb())
+        except:#no load or decode error
+            pass
         self.CreateNewTab(self.tabWidget, "Whole in hex",share.list_packet[val].hexdump())
-
+        
         for i in layerlist:
             # detect IP/TCP reassembly
             if "IP" in i:
@@ -661,7 +673,6 @@ class Ui_MainWindow(object):
             s_utf8 = s_utf8 + share.list_packet[i[0]].packet_to_load_utf8()
            
         self.file_content = s_utf8
-        #self.size_label.SetLabel("Total Size: "+str(self.reassemble_size)+"B")
         q = ""
         q = q + "".join(packet_align(s_raw))
         s_gb = s + "\n" + "Decoded by GB2312:" + "\n" + s_gb
@@ -684,23 +695,26 @@ class Ui_MainWindow(object):
             for i in response.headers:
                 QtCore.QCoreApplication.processEvents()
                 h += str(i) + " : " + str(response.headers[i]) + "\n"
-            s = b"No. " + bytes(str(val), 'utf8') + b" can be HTTP assembled by following %d packet"%len(self.final_tcp_seq)
+            s = "No. " + str(self.val) + " can be TCP assembled by following %d packet"%len(self.final_tcp_seq)
             if (len(self.final_tcp_seq)>1):
                 s+="s"
             s+=":\n"
+            
             for i in self.final_tcp_seq:
                 QtCore.QCoreApplication.processEvents()
-                s = s + b"No. " + bytes(str(i[1][0]), 'utf8') + b", "
-            s = s[:-2] + b"\n" + b"After reassembly:" + b"\n" + b"\n"
+                s = s + "No. " + str(i[1][0]) + ", "
+            s = s[:-2] + "\n" + "After reassembly:" + "\n" + "\n"
             try:
                 content = response.data
             except:
                 pass
             self.file_content = content
+            self.http_content= content
             h = "HTTP Header in No. " + str(first_index) + '\n' + h
 
             self.CreateNewTab(self.tabWidget_2, "HTTP HEADER", h)
-            self.CreateNewTab(self.tabWidget_2, "HTTP CONTENT", s + content)
+            print (content)
+            self.CreateNewTab(self.tabWidget_2, "HTTP CONTENT", s + str(content)[2:-1])
         except:
             self.file_content = b""
             for i in self.final_tcp_seq:
@@ -714,12 +728,32 @@ class Ui_MainWindow(object):
                 if (i[1][1] != 0):
                     s_gb = s_gb + share.list_packet[i[1][0]].packet_to_load_gb()
                     s_utf8 = s_utf8 + share.list_packet[i[1][0]].packet_to_load_utf8()
-            #self.size_label.SetLabel("Total Size: "+str(self.reassemble_size)+"B")
             q = ""
             q = q + "".join(packet_align(s_raw))
             s_gb = s + "\n" + "Decoded by GB2312:" + "\n" + s_gb
             s_utf8 = s + "\n" + "Decoded by UTF8:" + "\n" + s_utf8
             s_raw = s + "\n"+ "Raw bytes:" + "\n" + q
+
+            if ('\033[') in s_gb:
+                """Add a new tab showing ANSI Escape Code
+                
+                Detect the data may contain ANSI Escape Code.
+                Using `ansiconv` library to parse it to css and show.
+                """
+                a=QtWidgets.QTextBrowser() 
+                a.setFrameStyle(QFrame.NoFrame)
+                html = ansiconv.to_html(s_gb)
+                css = ansiconv.base_css()
+                html="""
+                    <html>
+                    <head><style>{0}</style></head>
+                    <body>
+                        <pre class="ansi_fore ansi_back">{1}</pre>
+                    </body>
+                    </html>
+                    """.format(css, html)
+                a.setHtml(html)
+                self.tabWidget_2.addTab(a,'Console Type')
             self.CreateNewTab(self.tabWidget_2,"TCP reassemble Hex", s_raw)
             self.CreateNewTab(self.tabWidget_2,"TCP reassemble UTF-8", s_utf8)
             self.CreateNewTab(self.tabWidget_2,"TCP reassemble GB2312", s_gb)
@@ -734,7 +768,9 @@ class Ui_MainWindow(object):
         self.file_content = b""
         self.pbar.show()
         current_num=0
-        if (self.final_tcp_seq!=""):
+        if (self.http_content!=""):
+            self.file_content=self.http_content
+        elif (self.final_tcp_seq!=""):
             """mean TCP reassemble"""
             total_num=len(self.final_tcp_seq)
             for i in self.final_tcp_seq:

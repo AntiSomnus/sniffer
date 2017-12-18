@@ -184,7 +184,7 @@ class Packet_r():
                 while (self.packet[index].nh!=58):
                 
                     index+=1
-            except IndexError:
+            except:
                 return (255,255,255)
             return (252,224,255)
         else:
