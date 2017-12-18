@@ -14,7 +14,7 @@ Only test and modify the lib concerning Windows users.
 
 Need to install [Win10Pcap(Recommended)](http://www.win10pcap.org/), Npcap(might have slight issue of missing certain packets).
 
-#### GUI: wxPython
+#### GUI: PyQt5
 
 #### Other libs: 
 
@@ -68,8 +68,6 @@ Please notice that this feature will only take effect when you stop because it w
 
 
 ## Sample
-### Sniffer v1.0:
+### Sniffer v2.0:
 ![Sample](/sample.png "Sample")
 
-### Sniffer v1.1:
-![Sample](/sample2.png "New Feature")

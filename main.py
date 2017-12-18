@@ -2,10 +2,10 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtGui import QIcon, QFont, QCursor, QPixmap, QColor, QKeySequence
 from PyQt5.QtCore import pyqtSlot, QThread, Qt, pyqtSignal, QPoint
 from PyQt5.QtWidgets import QHBoxLayout, QFrame, QAbstractItemView, QSplitter, \
-                            QStyleFactory, QMenu, QShortcut,\
-                            QMainWindow, QApplication, QWidget, QAction, QTableWidget,\
-                            QTableWidgetItem, QVBoxLayout, \
-                            QTabWidget, QProgressBar, QFileDialog, QCompleter
+    QStyleFactory, QMenu, QShortcut,\
+    QMainWindow, QApplication, QWidget, QAction, QTableWidget,\
+    QTableWidgetItem, QVBoxLayout, \
+    QTabWidget, QProgressBar, QFileDialog, QCompleter
 
 
 from threading import Thread
@@ -29,6 +29,7 @@ from httpconverter import HttpConverter
 import ansiconv
 
 from contextlib import contextmanager
+
 
 @contextmanager
 def redirect_stderr(new_target):
@@ -174,6 +175,7 @@ class NewButton(QtWidgets.QPushButton):
     """
     A new button class derived from QPushButton
     """
+
     def enterEvent(self, event):
         """Refine mouse enter event of the button.
         
@@ -197,6 +199,7 @@ class Table(QtWidgets.QTableWidget):
     
     Modify contextMenuEvent to save selected packet(s)
     """
+
     def contextMenuEvent(self, event):
         """Refine contextMenu Event of the QtableWidget.
         
@@ -212,7 +215,7 @@ class Table(QtWidgets.QTableWidget):
         else:
             saveAction = QtWidgets.QAction('Save selected packet', self)
             copyAction = QtWidgets.QAction('Save selected packet', self)
-        
+
         saveAction.triggered.connect(self.SaveReadablePackets)
         saveAction.triggered.connect(self.CopyReadablePackets)
         self.menu.addAction(saveAction)
@@ -230,15 +233,15 @@ class Table(QtWidgets.QTableWidget):
         for i in self.selectedItems():
             a.append(i.row())
         filename = QFileDialog.getSaveFileName(filter="Text files (*.txt)")[0]
-        s=""
+        s = ""
         if (filename != ""):
             f = open(filename, "w")
-            l=set(a)
+            l = set(a)
             list(l).sort()
             for i in l:
                 if (share.flag_search == True):
                     i = share.dict_search[i]
-                s+=self.GetReadablePackets(i)
+                s += self.GetReadablePackets(i)
             f.write(s)
             f.close()
             # open the file as soon as the progress of saving is finished
@@ -252,29 +255,29 @@ class Table(QtWidgets.QTableWidget):
         
         """
         cb = QtWidgets.QApplication.clipboard()
-        cb.clear(mode=cb.Clipboard )
+        cb.clear(mode=cb.Clipboard)
         a = []
         for i in self.selectedItems():
             a.append(i.row())
-        s=""
-        l=set(a)
+        s = ""
+        l = set(a)
         list(l).sort()
         for i in l:
             if (share.flag_search == True):
                 i = share.dict_search[i]
-            s+=self.GetReadablePackets(i)
+            s += self.GetReadablePackets(i)
         cb.setText(s, mode=cb.Clipboard)
 
-    def GetReadablePackets(self,i):
+    def GetReadablePackets(self, i):
         """Using index to give readable packets
         
         Return readable packets' string.
         Args:
             i: index of the packet in list_packet
         """
-        return ('No.' + str(share.list_packet[i].num) + '\nCapture Time:' + share.list_packet[i].time +\
-                        '\tSave Time:' + datetime.now().strftime("%H:%M:%S") +\
-                        '\n' + share.list_packet[i].show(dump=True) + '\n')
+        return ('No.' + str(share.list_packet[i].num) + '\nCapture Time:' + share.list_packet[i].time +
+                '\tSave Time:' + datetime.now().strftime("%H:%M:%S") +
+                '\n' + share.list_packet[i].show(dump=True) + '\n')
 
 
 class Ui_MainWindow(object):
@@ -403,7 +406,6 @@ class Ui_MainWindow(object):
         hbox.setSpacing(0)
         self.searchbar.returnPressed.connect(self.Evtsearch)
 
-
         '''3nd line layout'''
         self.gridLayout.addLayout(hbox, 2, 0, 1, 10)
         self.gridLayout.addWidget(self.button, 0, 9, 1, 1)
@@ -439,15 +441,13 @@ class Ui_MainWindow(object):
         #select a row when clicking
         self.tableWidget.setSelectionBehavior(QTableWidget.SelectRows)
         self.tableWidget.setMouseTracking(True)
-    
-        
+
         # QThread to receive signal of adding and scrolling
         self.th = ProcessingThread()
         self.th.AddPacket.connect(self.AddPacketToTable)
         self.th.Scroll.connect(self.ScrollToEnd)
         self.th.start()
 
-        
         """tab1"""
         self.tabWidget = QtWidgets.QTabWidget(self.centralwidget)
         self.tabWidget.setMinimumHeight(50)
@@ -513,7 +513,7 @@ class Ui_MainWindow(object):
         self.th2 = NetworkspeedThread()
         self.th2.SetNetworkSpeed.connect(self.SetSpeedOnStatusBar)
         self.th2.start()
-        
+
         #whether have http content
         self.http_content = ""
 
@@ -524,11 +524,11 @@ class Ui_MainWindow(object):
             QKeySequence("Ctrl+F"), self.centralwidget)
         self.colorshortcut.activated.connect(self.ColorMode)
         #copy packets
-        self.copypacket= QShortcut(
+        self.copypacket = QShortcut(
             QKeySequence("Ctrl+C"), self.centralwidget)
         self.copypacket.activated.connect(self.tableWidget.CopyReadablePackets)
         #save packets
-        self.copypacket= QShortcut(
+        self.copypacket = QShortcut(
             QKeySequence("Ctrl+S"), self.centralwidget)
         self.copypacket.activated.connect(self.tableWidget.SaveReadablePackets)
         self.title = 'Sniffer V2.0'
@@ -537,7 +537,6 @@ class Ui_MainWindow(object):
         self.MainWindow.setWindowTitle(self.title)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
-   
     def ColorMode(self):
         """Change Color Mode
         
@@ -600,7 +599,7 @@ class Ui_MainWindow(object):
         Args:
             l: [speed_up,speed_down] emitted from QThread
         """
-        
+
         s_up = l[0]
         s_down = l[1]
         if s_up // 1024 < 1:
@@ -625,7 +624,7 @@ class Ui_MainWindow(object):
         from QThread.
         Args:
             l: string means nothing, only to fit the signal requirements
-        """    
+        """
         self.tableWidget.scrollToBottom()
 
     def AddPacketToTable(self, l):
@@ -669,7 +668,7 @@ class Ui_MainWindow(object):
         
         The event for entering the src, 
         which is to save it for filter(default:all)
-        """        
+        """
         global flag_dict
         flag_dict['src'] = self.src.text()
 
@@ -678,7 +677,7 @@ class Ui_MainWindow(object):
         
         The event for entering the sport, 
         which is to save it for filter(default:all)
-        """  
+        """
         global flag_dict
         flag_dict['sport'] = self.sport.text()
 
@@ -687,7 +686,7 @@ class Ui_MainWindow(object):
         
         The event for entering the dst, 
         which is to save it for filter(default:all)
-        """  
+        """
         global flag_dict
         flag_dict['dst'] = self.dst.text()
 
@@ -696,7 +695,7 @@ class Ui_MainWindow(object):
         
         The event for entering the dport, 
         which is to save it for filter(default:all)
-        """  
+        """
         global flag_dict
         flag_dict['dport'] = self.dport.text()
 
@@ -709,9 +708,11 @@ class Ui_MainWindow(object):
         global flag_dict
         flag_dict['start'] = not flag_dict['start']
         if (flag_dict['start']):
+            filterstr=InputToFilter(flag_dict) if (InputToFilter(flag_dict)!="") else "ALL"
             self.button.setText('Stop')
             title = self.title + " - " + \
-                flag_dict["iface"] + " - " + InputToFilter(flag_dict)
+                flag_dict["iface"] + " - " + \
+                filterstr
             if (flag_dict["max"]):
                 title += " - OC: ON"
             else:
@@ -749,7 +750,10 @@ class Ui_MainWindow(object):
                 return
         share.flag_select = True
         share.flag_cancel = False
-        self.val = val
+        try:
+            self.val = val
+        except UnboundLocalError:
+            return
         self.final_tcp_seq = ""
         self.final_ip_seq = ""
         self.http_content = ""
@@ -773,10 +777,12 @@ class Ui_MainWindow(object):
                     "%-10s%s\n" % ((key[0].upper() + key[1:] + ":"), i[1][key])
             self.CreateNewTab(self.tabWidget, i[0], s)
         try:
-            self.CreateNewTab(self.tabWidget, "Load in UTF-8",
-                              share.list_packet[val].packet_to_load_utf8())
+            s = ""
+            s = s + "No. " + str(val) + "\n" + i[0]+"\n"
+            self.CreateNewTab(self.tabWidget, "Load in UTF-8:",
+                              s + "Decoded by UTF-8:\n" + share.list_packet[val].packet_to_load_utf8())
             self.CreateNewTab(self.tabWidget, "Load in GB2312",
-                              share.list_packet[val].packet_to_load_gb())
+                              s + "Decoded by GB2312:\n" + share.list_packet[val].packet_to_load_gb())
         except:  # no load or decode error
             pass
         self.CreateNewTab(self.tabWidget, "Whole in hex",
@@ -970,7 +976,8 @@ class Ui_MainWindow(object):
                     </html>
                     """.format(css, html)
                 a.setHtml(html)
-                self.tabWidget_2.addTab(a, 'Console Type')
+                self.tabWidget_2.addTab(
+                    a, 'Console Type(Parsing ANSI Escape Code)')
             self.CreateNewTab(self.tabWidget_2, "TCP reassemble Hex", s_raw)
             self.CreateNewTab(self.tabWidget_2, "TCP reassemble UTF-8", s_utf8)
             self.CreateNewTab(self.tabWidget_2, "TCP reassemble GB2312", s_gb)
@@ -986,7 +993,7 @@ class Ui_MainWindow(object):
             self.ShowIpResult()
 
     def EvtSaveReassemble(self):
-         """Save Reassemble to file.
+        """Save Reassemble to file.
         
         Save Reassemble to file, the location of which is specified by user.
         It may take some time to process, but you can see the process in progress bar.
@@ -1069,7 +1076,7 @@ class ProcessingThread(QThread):
     The major parsing packets happens here, which is to get each packet from
     Queue in sniffing process and parse it one by one.
     """
-    
+
     AddPacket = pyqtSignal(list)
     Scroll = pyqtSignal(str)
 
@@ -1213,13 +1220,12 @@ def InputToFilter(flag_dict):
 
 def InfiniteProcess(flag_dict, pkt_lst):
     """The infinite process of sniffing.
-    
+
     The dedicated process to sniff, which is to get the iface and filter and then starting sniffing.
     Args:
         flag_dict: manager.dict  pass args between processes.
         pkt_lst:   manager.queue pass pkts between processes.
     """
-
 
     """"""
     while (flag_dict['close'] == False):
