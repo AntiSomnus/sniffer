@@ -66,6 +66,9 @@ As long as you pause in the middle of sniffing, using API of PyShark, the brief 
 It is much convenient because you don't need to click and only moving mouse focus will help find the packet you are looking for.
 Please notice that this feature will only take effect when you stop because it will otherwise reduce certain performance when sniffing. 
 
+### Color Theme like WireShark
+
+Every packet is sorted by the default color theme of wireshark. Default On. Using "Ctrl+F" to turn off/on.
 
 ## Sample
 ### Sniffer v2.0:
