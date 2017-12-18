@@ -37,6 +37,7 @@ class VAR():
         self.dict_time = {}  # capture time dict  packet:time
         self.dict_search={}  # {after search:before search}
         self.dict_mac2name={} #mac:name of mac
+        self.dict_expect_tcp_seq={} #(src,dst):expect seq
         for i in psutil.net_if_addrs():
             a=re.sub(r'\W+', '', psutil.net_if_addrs()[i][0].address.lower())
             self.dict_mac2name[a]=i

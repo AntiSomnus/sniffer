@@ -26,7 +26,7 @@ from httpconverter import HttpConverter
 #filename  = open("outputfile.txt",'w')
 #sys.stdout = filename
 """The library to convert ANSI escape code to html css"""
-import ansiconv
+from ansi2html import Ansi2HTMLConverter
 
 from contextlib import contextmanager
 
@@ -948,7 +948,7 @@ class Ui_MainWindow(object):
                 s_raw = s_raw + \
                     share.list_packet[i[1][0]].packet_to_load_plain()
                 if (i[1][1] != 0):
-                    s_gb = s_gb + share.list_packet[i[1][0]].packet_to_load_gb()
+                    s_gb = s_gb + share.list_packet[i[1][0]].packet_to_load_gb(ignore=True)
                     s_utf8 = s_utf8 + \
                         share.list_packet[i[1][0]].packet_to_load_utf8()
             q = ""
@@ -961,23 +961,25 @@ class Ui_MainWindow(object):
                 """Add a new tab showing ANSI Escape Code
 
                 Detect the data may contain ANSI Escape Code.
-                Using `ansiconv` library to parse it to css and show.
-                """
+                Using `ansi2html` library to parse it to css and show.
+                """        
                 a = QtWidgets.QTextBrowser()
                 a.setFrameStyle(QFrame.NoFrame)
-                html = ansiconv.to_html(s_gb)
-                css = ansiconv.base_css()
-                html = """
-                    <html>
-                    <head><style>{0}</style></head>
-                    <body>
-                        <pre class="ansi_fore ansi_back">{1}</pre>
-                    </body>
-                    </html>
-                    """.format(css, html)
-                a.setHtml(html)
+    
+                conv = Ansi2HTMLConverter()
+                html = conv.convert(s_gb)
+                html=str.replace(html,"\n</span>","</span>")
+                #somehow QyQt has different between html in memory and file
+                f=open("temp.html","w")
+                f.write(html)
+                f.close()
+                with open('temp.html', 'r') as content_file:
+                    content = content_file.read()
+                a.setHtml(content)
+                content_file.close()
                 self.tabWidget_2.addTab(
                     a, 'Console Type(Parsing ANSI Escape Code)')
+
             self.CreateNewTab(self.tabWidget_2, "TCP reassemble Hex", s_raw)
             self.CreateNewTab(self.tabWidget_2, "TCP reassemble UTF-8", s_utf8)
             self.CreateNewTab(self.tabWidget_2, "TCP reassemble GB2312", s_gb)
@@ -1125,6 +1127,13 @@ class ProcessingThread(QThread):
                 else:
                     seqlen = 0
                 share.tcp_seq[seq] = (packet.num, seqlen)
+
+                try:
+                    if (seq!=share.dict_expect_tcp_seq[(packet.src,packet.dst)]):
+                        print('out of order',packet.show(dump=True))
+                except KeyError:
+                    pass
+                share.dict_expect_tcp_seq[(packet.src,packet.dst)]=seq+seqlen
 
             # possible preprocess for IP reassembly
             if packet.haslayer(IP):

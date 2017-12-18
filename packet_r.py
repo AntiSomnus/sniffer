@@ -119,14 +119,14 @@ class Packet_r():
             return "No load layer in this packet"
         try:
             if set(tmp.decode("utf-8")) == {"\x00"}:
-                return "null"
+                return ""
             else:
                 return tmp.decode('utf-8')
         except:
             return "Cannot decoded by utf-8\n"
 
 
-    def packet_to_load_gb(self):
+    def packet_to_load_gb(self,ignore=False):
         """decode packet load to GB2312 (particularly for Chinese)"""
         try:
             tmp = codecs.decode(bytes(self.packet.load).hex(), "hex")
@@ -134,11 +134,14 @@ class Packet_r():
             return "No load layer in this packet"
         try:
             if set(tmp.decode("GB2312")) == {"\x00"}:
-                return "null"
+                return ""
             else:
                 return tmp.decode('GB2312')
         except:
-            return "Cannot decoded by GB2312\n"
+            if (ignore):
+                return ""
+            else:
+                return "Cannot decoded by GB2312\n"
 
 
     def hexdump(self):
