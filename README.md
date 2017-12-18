@@ -51,9 +51,9 @@ New feature is added to show the whole size number after reassembly to have a qu
 Using search bar wisely can actually save a lot of time.
 Keywords are searched in whole packet's hex or decoded by UTF-8 and GB2312,which is very convenient to find http headers of filename.
 
-### MAX Module
+### OC Module
 
-The default MAX module will never let you down when an additional dedicated process is used for listening and sniffing.
+The default OC module will never let you down when an additional dedicated process is used for listening and sniffing.
 However, it is very CPU-consuming, but you can turn it off any time (have to stop and start to take effect)
 
 ### Network Speed
