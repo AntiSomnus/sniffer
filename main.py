@@ -584,7 +584,9 @@ class Ui_MainWindow(object):
                     item = QTableWidgetItem(share.list_tmp[i][j])
                     if (self.colorModeStatus):
                         item.setBackground(QtGui.QColor(
-                            color_list[0], color_list[1], color_list[2]))
+                            color_list[0][0], color_list[0][1], color_list[0][2]))
+                        item.setForeground(QtGui.QColor(
+                            color_list[1][0], color_list[1][1], color_list[1][2]))
                     self.tableWidget.setItem(after_search_index, j, item)
                 after_search_index += 1
         if (keyword == ""):
@@ -640,7 +642,8 @@ class Ui_MainWindow(object):
         for i in range(6):
             item = QTableWidgetItem(l[i])
             if (self.colorModeStatus):
-                item.setBackground(QtGui.QColor(l[-2][0], l[-2][1], l[-2][2]))
+                item.setBackground(QtGui.QColor(l[-2][0][0], l[-2][0][1], l[-2][0][2]))
+                item.setForeground(QtGui.QColor(l[-2][1][0], l[-2][1][1], l[-2][1][2]))
             self.tableWidget.setItem(num, i, item)
 
     def EVT_COMBOBOX(self):
@@ -1105,35 +1108,23 @@ class ProcessingThread(QThread):
             packet.time = p[1]
             packet.num = num
             packet = Packet_r(packet)
-            share.list_packet.append(packet)
-            if (share.flag_search == False):
-                l = packet.packet_to_info()
-                l.append(packet.getColor())
-                l.append(num)
-                self.AddPacket.emit(l)
-            share.list_tmp.append(packet.packet_to_info())
-            num += 1
-            if ((share.flag_select == False and share.flag_search == False)
-                    or (share.flag_select == True and share.flag_cancel == True
-                        and share.flag_search == False)):
-                # make the scroll bar update
-                self.Scroll.emit("True")
-                # ex.tableWidget.scrollToBottom()
+            
             # possible preprocess for TCP reassembly
             if packet.haslayer(TCP):
                 seq = packet.packet[TCP].seq
-                if hasattr(packet.packet[TCP], "load"):
-                    seqlen = len(packet.packet[TCP].load)
-                else:
+                try:
+                    seqlen = len(packet.packet[Raw])
+                except:
                     seqlen = 0
                 share.tcp_seq[seq] = (packet.num, seqlen)
 
                 try:
-                    if (seq!=share.dict_expect_tcp_seq[(packet.src,packet.dst)]):
-                        print('out of order',packet.show(dump=True))
+                    if (seq!=share.dict_expect_tcp_seq[(packet.src,packet.dst,packet.packet[TCP].sport,packet.packet[TCP].dport)]):
+                       packet.tcp_order=False
                 except KeyError:
                     pass
-                share.dict_expect_tcp_seq[(packet.src,packet.dst)]=seq+seqlen
+                share.dict_expect_tcp_seq[(packet.src,packet.dst,packet.packet[TCP].sport,packet.packet[TCP].dport)]=seq+seqlen
+                print (seq,seqlen)
 
             # possible preprocess for IP reassembly
             if packet.haslayer(IP):
@@ -1148,6 +1139,20 @@ class ProcessingThread(QThread):
                         share.ip_seq[(packet.packet[IP].src, packet.packet[IP].dst,
                                       packet.packet[IP].id)] = [(packet.num, packet.packet[IP].flags,
                                                                  packet.packet[IP].frag)]
+
+            share.list_packet.append(packet)
+            if (share.flag_search == False):
+                l = packet.packet_to_info()
+                l.append(packet.getColor())
+                l.append(num)
+                self.AddPacket.emit(l)
+            share.list_tmp.append(packet.packet_to_info())
+            num += 1
+            if ((share.flag_select == False and share.flag_search == False)
+                    or (share.flag_select == True and share.flag_cancel == True
+                        and share.flag_search == False)):
+                # make the scroll bar update
+                self.Scroll.emit("True")
 
     def stop(self):
         self.isRunning = False

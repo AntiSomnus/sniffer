@@ -26,6 +26,7 @@ class Packet_r():
     def __init__(self, packet):
         self.packet = packet
 
+        self.tcp_order=True  #default every packer is in order
     
     def expand(self):
         """expand get all payload"""
@@ -159,36 +160,39 @@ class Packet_r():
         return (len(self.packet))
 
     def getColor(self):
-        if (self.packet.haslayer(ARP)):
-            return (218,238,255)
-        elif (self.packet.haslayer(ICMP)):
-            return (252,224,255)
-        elif (self.packet.haslayer(TCP)):
-            binary_flags=bin(int(self.packet[TCP].flags.split(' ')[0]))[2:].rjust(7,'0')
-            if (binary_flags[-3]=='1'):#reset
-                return (164,0,0)
-            elif (self.packet[TCP].sport==80 or self.packet[TCP].dport==80):#http
-                return (228,255,199)
-            elif (binary_flags[-2]=='1' or binary_flags[-1]=='1'):#SYN/FIN
-                return (160,160,160)
+        if (self.tcp_order):
+            if (self.packet.haslayer(ARP)):
+                return ((218,238,255),(18,39,46))
+            elif (self.packet.haslayer(ICMP)):
+                return ((252,224,255),(18,39,46))
+            elif (self.packet.haslayer(TCP)):
+                binary_flags=bin(int(self.packet[TCP].flags.split(' ')[0]))[2:].rjust(7,'0')
+                if (binary_flags[-3]=='1'):#reset
+                    return ((164,0,0),(255,252,156))
+                elif (self.packet[TCP].sport==80 or self.packet[TCP].dport==80):#http
+                    return ((228,255,199),(18,39,46))
+                elif (binary_flags[-2]=='1' or binary_flags[-1]=='1'):#SYN/FIN
+                    return ((160,160,160),(18,39,46))
 
-            return (231,230,255)
-        elif (self.packet.haslayer(UDP)):
-            return (218,238,255)
-        elif (self.packet.haslayer(IP)):
-            if(self.packet[IP].proto in (2,88,89,112)):
-            ### igmp,eigrp,ospf,vrrp
-                return (255,243,214)
+                return ((231,230,255),(18,39,46))
+            elif (self.packet.haslayer(UDP)):
+                return ((218,238,255),(18,39,46))
+            elif (self.packet.haslayer(IP)):
+                if(self.packet[IP].proto in (2,88,89,112)):
+                ### igmp,eigrp,ospf,vrrp
+                    return ((255,243,214),(18,39,46))
+                else:
+                    return ((255,255,255),(18,39,46))
+            elif (self.packet.haslayer(IPv6)):
+                index=0
+                try:#ICMPv6 filter
+                    while (self.packet[index].nh!=58):
+                    
+                        index+=1
+                except:
+                    return ((255,255,255),(18,39,46))
+                return ((252,224,255),(18,39,46))
             else:
-                return (255,255,255)
-        elif (self.packet.haslayer(IPv6)):
-            index=0
-            try:#ICMPv6 filter
-                while (self.packet[index].nh!=58):
-                
-                    index+=1
-            except:
-                return (255,255,255)
-            return (252,224,255)
-        else:
-            return (255,255,255)
+                return ((255,255,255),(18,39,46))
+        else:   #tcp out of order
+            return ((18,39,46),(247,135,135))
