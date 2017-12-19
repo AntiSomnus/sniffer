@@ -1,3 +1,6 @@
+#regex for ipv4 and ipv6 in the same time
+regex="((^\s*((([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]))\s*$)|(^\s*((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))(%.+)?\s*$))"
+
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtGui import QIcon, QFont, QCursor, QPixmap, QColor, QKeySequence, QPalette
 from PyQt5.QtCore import pyqtSlot, QThread, Qt, pyqtSignal, QPoint
@@ -64,6 +67,7 @@ conf.use_pcap = True
 import psutil
 
 """The following functions are used to handle tcp reassembly"""
+
 
 def packet_tcp_seq(seq):
     """Return the related fragments of given `seq`.
@@ -151,6 +155,7 @@ def packet_tcp_seq_backward(seq_keys, position, p):
 
 """The following function is used to give wireshark-type string"""
 
+
 def packet_align(s):
     """Convert hex string to Wireshark-type raw hex string.
     
@@ -170,6 +175,7 @@ def packet_align(s):
 
 
 """The following functions is used to parse filter when dict is given"""
+
 
 def InputToFilter(flag_dict):
     """Return the filter string of input.
@@ -198,6 +204,7 @@ def InputToFilter(flag_dict):
 
 
 """The following function is an additional process to sniff continously"""
+
 
 def InfiniteProcess(flag_dict, pkt_lst):
     """The infinite process of sniffing.
@@ -234,6 +241,7 @@ def InfiniteProcess(flag_dict, pkt_lst):
 
 
 """The following classes are customized class derived from QtWidgets"""
+
 
 class SearchButton(QtWidgets.QPushButton):
     """
@@ -403,17 +411,20 @@ class ColorDelegate(QtWidgets.QStyledItemDelegate):
             index: default parameter
         """
         color = index.data(Qt.UserRole)
-        
-        if (color==QColor((18-30)%256,(39-30)%256,(46-30)%256)):
-            option.palette.setColor(QPalette.Highlight, QColor(50,39,46))
-            option.palette.setColor(QPalette.HighlightedText,QColor(247,135,135))
+
+        if (color == QColor((18 - 30) % 256, (39 - 30) % 256, (46 - 30) % 256)):
+            option.palette.setColor(QPalette.Highlight, QColor(50, 39, 46))
+            option.palette.setColor(
+                QPalette.HighlightedText, QColor(247, 135, 135))
         else:
             option.palette.setColor(QPalette.Highlight, color)
-            option.palette.setColor(QPalette.HighlightedText,QColor(18,39,46))
+            option.palette.setColor(
+                QPalette.HighlightedText, QColor(18, 39, 46))
         QStyledItemDelegate.paint(self, painter, option, index)
 
 
 """The following classes are customized class derived from QThread"""
+
 
 class ProcessingThread(QThread):
     """A class derived from QThread of processing raw packets.
@@ -438,7 +449,7 @@ class ProcessingThread(QThread):
         num = 0
         global pkt_lst
         while self.isRunning:
-            if (share.flag_search==False):
+            if (share.flag_search == False):
                 try:
                     p = pkt_lst.get()
 
@@ -484,13 +495,13 @@ class ProcessingThread(QThread):
                         if (packet.packet[IP].src, packet.packet[IP].dst,
                                 packet.packet[IP].id) in share.ip_seq.keys():
                             share.ip_seq[(packet.packet[IP].src, packet.packet[IP].dst,
-                                        packet.packet[IP].id)].append(
+                                          packet.packet[IP].id)].append(
                                 (packet.num, packet.packet[IP].flags,
-                                packet.packet[IP].frag))
+                                 packet.packet[IP].frag))
                         else:
                             share.ip_seq[(packet.packet[IP].src, packet.packet[IP].dst,
-                                        packet.packet[IP].id)] = [(packet.num, packet.packet[IP].flags,
-                                                                    packet.packet[IP].frag)]
+                                          packet.packet[IP].id)] = [(packet.num, packet.packet[IP].flags,
+                                                                     packet.packet[IP].frag)]
 
                 share.list_packet.append(packet)
                 if (share.flag_search == False):
@@ -507,6 +518,7 @@ class ProcessingThread(QThread):
                     self.Scroll.emit("True")
             else:
                 pass
+
     def stop(self):
         self.isRunning = False
         self.quit()
@@ -559,6 +571,7 @@ class NetworkspeedThread(QThread):
 
 
 """The following classe is the main GUI class"""
+
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -632,19 +645,23 @@ class Ui_MainWindow(object):
         self.src = QtWidgets.QLineEdit(self.centralwidget)
         self.src.setFont(QFont('Consolas', 10, QFont.Light))
         self.src.textChanged.connect(self.EvtTextSrc)
+        v = QtGui.QRegExpValidator(QtCore.QRegExp(regex))
+        self.src.setValidator(v)
         # sport LineEdit
         self.sport = QtWidgets.QLineEdit(self.centralwidget)
         self.sport.setFont(QFont('Consolas', 10, QFont.Light))
         self.sport.textChanged.connect(self.EvtTextSport)
+        self.sport.setValidator(QtGui.QIntValidator(0,65535))
         # dst LineEdit
         self.dst = QtWidgets.QLineEdit(self.centralwidget)
         self.dst.setFont(QFont('Consolas', 10, QFont.Light))
         self.dst.textChanged.connect(self.EvtTextDst)
+        self.dst.setValidator(v)
         # dport LineEdit
         self.dport = QtWidgets.QLineEdit(self.centralwidget)
         self.dport.setFont(QFont('Consolas', 10, QFont.Light))
         self.dport.textChanged.connect(self.EvtTextDport)
-
+        self.dport.setValidator(QtGui.QIntValidator(0,65535))
         '''2nd line layout'''
         self.gridLayout.addWidget(self.label_pro, 1, 0, 1, 1)
         self.gridLayout.addWidget(self.pro, 1, 1, 1, 1)
@@ -894,15 +911,15 @@ class Ui_MainWindow(object):
         """
         global flag_dict
         flag_dict['start'] = not flag_dict['start']
-        
+
         if (flag_dict['start']):
             sleep(0.3)
-            if (flag_dict['error']==True):
+            if (flag_dict['error'] == True):
                 #filter error
-                flag_dict['start']=False
-                flag_dict['error']=False
+                flag_dict['start'] = False
+                flag_dict['error'] = False
                 buttonReply = QtWidgets.QMessageBox.critical(
-                    self.centralwidget, 'Filter Error', "Your Input is not valid.\nPlease try another one.", 
+                    self.centralwidget, 'Filter Error', "Your Input is not valid.\nPlease try another one.",
                     QtWidgets.QMessageBox.Ok, QtWidgets.QMessageBox.Ok)
                 return
             filterstr = InputToFilter(flag_dict) if (
@@ -956,10 +973,10 @@ class Ui_MainWindow(object):
             self.pbar.hide()
         except:
             pass
-        
+
         for i in self.tableWidget.selectedItems():
             val = i.row()
-        
+
         if (share.flag_search == True):
             try:
                 val = share.dict_search[val]
@@ -967,23 +984,23 @@ class Ui_MainWindow(object):
                 return
         share.flag_select = True
         share.flag_cancel = False
-        
+
         try:
             self.val = val
         except UnboundLocalError:
             return
-        
+
         self.final_tcp_seq = ""
         self.final_ip_seq = ""
         self.http_content = ""
         count = self.tabWidget.count()
-        
+
         for i in range(self.tabWidget.count()):
             self.tabWidget.removeTab(0)
-        
+
         for i in range(self.tabWidget_2.count()):
             self.tabWidget_2.removeTab(0)
-        
+
         try:
             layerlist = share.list_packet[val].packet_to_layerlist()
         except UnboundLocalError:
@@ -998,7 +1015,7 @@ class Ui_MainWindow(object):
                 s = s + \
                     "%-10s%s\n" % ((key[0].upper() + key[1:] + ":"), i[1][key])
             self.CreateNewTab(self.tabWidget, i[0], s)
-        
+
         try:
             s = ""
             s = s + "No. " + str(val) + "\n" + i[0] + "\n"
@@ -1008,7 +1025,7 @@ class Ui_MainWindow(object):
                               s + "Decoded by GB2312:\n" + share.list_packet[val].packet_to_load_gb())
         except:  # no load or decode error
             pass
-        
+
         self.CreateNewTab(self.tabWidget, "Whole in hex",
                           share.list_packet[val].hexdump())
 
@@ -1104,7 +1121,7 @@ class Ui_MainWindow(object):
         even in the period of seaching
         """
         self.tableWidget.setRowCount(0)
-        
+
         keyword = self.searchbar.text()
 
         share.flag_search = True
@@ -1209,7 +1226,7 @@ class Ui_MainWindow(object):
         Reverse the colorModeStatus flag every time triggered.
         """
         self.colorModeStatus = not self.colorModeStatus
-    
+
     def SetSpeedOnStatusBar(self, l):
         """Set speed label text on status bar.
         
@@ -1254,7 +1271,7 @@ class Ui_MainWindow(object):
             l: [num,time,src,dst,len,protocol,(background-color(r,g,b),font-color(r,g,b)]
         """
         num = l[-1]
-        
+
         self.tableWidget.insertRow(num)
         for i in range(6):
             item = QTableWidgetItem(l[i])
@@ -1266,6 +1283,7 @@ class Ui_MainWindow(object):
                 item.setData(Qt.UserRole, QtGui.QColor(
                     (l[-2][0][0] - 30) % 256, (l[-2][0][1] - 30) % 256, (l[-2][0][2] - 30) % 256))
             self.tableWidget.setItem(num, i, item)
+
     def ShowIpResult(self):
         """Show Ip reassembly result in tab2.
         
@@ -1304,7 +1322,7 @@ class Ui_MainWindow(object):
                 QtCore.QCoreApplication.processEvents()
                 content += share.list_packet[i[1][0]].load
             response = HttpConverter(content).getcontent()
-            
+
             h = ""
             for i in response.headers:
                 QtCore.QCoreApplication.processEvents()
@@ -1323,17 +1341,17 @@ class Ui_MainWindow(object):
             s = s[:-2] + "\n" + "After reassembly:" + "\n" + "\n"
             try:
                 content = response.data
-                content=content.decode('utf8')
+                content = content.decode('utf8')
             except:
-                content=str(content)[2:-1]
-            
+                content = str(content)[2:-1]
+
             self.http_content = response.data
             h = "HTTP Header in No. " + str(first_index) + '\n' + h
 
             self.CreateNewTab(self.tabWidget_2, "HTTP HEADER", h)
-            
+
             self.CreateNewTab(self.tabWidget_2, "HTTP CONTENT",
-                              s+content)
+                              s + content)
         except:
             self.file_content = b""
             for i in self.final_tcp_seq:
@@ -1453,9 +1471,9 @@ if __name__ == "__main__":
     p.start()
     flag_dict["select"] = False
 
-    #To show icon correctly in taskbar 
+    #To show icon correctly in taskbar
     import ctypes
-    myappid = 'sniffer v2.0' # arbitrary string
+    myappid = 'sniffer v2.0'  # arbitrary string
     ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 
     w = QtWidgets.QMainWindow()
