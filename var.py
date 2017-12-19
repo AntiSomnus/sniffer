@@ -2,7 +2,10 @@
 import psutil
 import re
 class VAR():
-    """Class for shared variables in multipule threads of main process"""
+    """Class for shared variables in multipule threads of main process.
+
+    """
+    
     def __init__(self):
 
         self.interfaces = []    #network interface list
@@ -37,7 +40,9 @@ class VAR():
         self.dict_time = {}  # capture time dict  packet:time
         self.dict_search={}  # {after search:before search}
         self.dict_mac2name={} #mac:name of mac
-        self.dict_expect_tcp_seq={} #(src,dst):expect seq
+        self.dict_expect_tcp_seq={} #(src,dst,sport,dport):(expect seq,syn flag)
+
+        self.last_row=''  #last mouse row
         for i in psutil.net_if_addrs():
             a=re.sub(r'\W+', '', psutil.net_if_addrs()[i][0].address.lower())
             self.dict_mac2name[a]=i

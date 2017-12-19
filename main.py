@@ -1,11 +1,11 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtGui import QIcon, QFont, QCursor, QPixmap, QColor, QKeySequence
+from PyQt5.QtGui import QIcon, QFont, QCursor, QPixmap, QColor, QKeySequence, QPalette
 from PyQt5.QtCore import pyqtSlot, QThread, Qt, pyqtSignal, QPoint
 from PyQt5.QtWidgets import QHBoxLayout, QFrame, QAbstractItemView, QSplitter, \
     QStyleFactory, QMenu, QShortcut,\
     QMainWindow, QApplication, QWidget, QAction, QTableWidget,\
     QTableWidgetItem, QVBoxLayout, \
-    QTabWidget, QProgressBar, QFileDialog, QCompleter
+    QTabWidget, QProgressBar, QFileDialog, QCompleter, QStyledItemDelegate
 
 
 from threading import Thread
@@ -56,18 +56,27 @@ with open(os.devnull, 'w') as errf:
     with redirect_stderr(errf):
         from scapy.all import *
 
-"""Use pcap to capture in Windows"""
+#Use pcap to capture in Windows
 conf.use_pcap = True
 
 
-""" psutil is used to detect network speed"""
+#psutil is used to detect network speed
 import psutil
 
-"""The following fuctions are used to handle tcp reassembly"""
-
+"""The following functions are used to handle tcp reassembly"""
 
 def packet_tcp_seq(seq):
-
+    """Return the related fragments of given `seq`.
+    
+    When given the `seq`, processing `packet_tcp_seq_backward`
+    and `packet_tcp_seq_forward` to find related fragments
+    all over the storage.
+    Args:
+        seq: int, the seq number of a TCP packet
+    
+    Returns:
+    list like [(seq, (packet number, Raw len)),...]
+    """
     seq_keys = list(share.tcp_seq.keys())
     seq_keys.sort()
     position = seq_keys.index(seq)
@@ -88,8 +97,8 @@ def packet_tcp_seq_forward(seq_keys, position, p):
         p: [description]
 
     Returns:
-        [description]
-    [type]
+        The forward part(packet num larger that this one)
+    list like [(seq, (packet number, Raw len)),...]
     """
     flag = True
     total_len = len(seq_keys)
@@ -111,8 +120,17 @@ def packet_tcp_seq_forward(seq_keys, position, p):
 
 
 def packet_tcp_seq_backward(seq_keys, position, p):
-    """Return tcp reassembly backward result"""
+    """Return tcp reassembly backward result
 
+    Args:
+        seq_keys: [description]
+        position: [description]
+        p: [description]
+
+    Returns:
+        The backward part(packet num smaller that this one)
+    list like [(seq, (packet number, Raw len)),...]
+    """
     flag = True
     remain_len = position
     while position >= 1:
@@ -131,6 +149,8 @@ def packet_tcp_seq_backward(seq_keys, position, p):
     return p
 
 
+"""The following function is used to give wireshark-type string"""
+
 def packet_align(s):
     """Convert hex string to Wireshark-type raw hex string.
     
@@ -148,6 +168,70 @@ def packet_align(s):
         s[n] = " ".join(s[n])
     return s
 
+
+"""The following functions is used to parse filter when dict is given"""
+
+def InputToFilter(flag_dict):
+    """Return the filter string of input.
+    
+    Return the filter string of input when the dict is given.
+    Args:
+        flag_dict: manager.dict, pass args between processes.
+    
+    Returns:
+        f:string of the filter satisfying BPF filter rules
+    """
+    f = ""
+    if (flag_dict['close'] == False):
+        for key in flag_dict.keys():
+            if (flag_dict[key] != ''):
+                if (key == 'pro'):
+                    f += " and " + flag_dict['pro']
+                elif (key == 'src' or key == 'dst'):
+                    f += " and " + key + " " + flag_dict[key]
+                elif (key == 'sport'):
+                    f += " and src port " + flag_dict['sport']
+                elif (key == 'dport'):
+                    f += " and dst port " + flag_dict['dport']
+        f = f[5:].lower()
+    return f
+
+
+"""The following function is an additional process to sniff continously"""
+
+def InfiniteProcess(flag_dict, pkt_lst):
+    """The infinite process of sniffing.
+
+    The dedicated process to sniff, which is to get the iface and filter and then starting sniffing.
+    Args:
+        flag_dict: manager.dict  pass args between processes.
+        pkt_lst:   manager.queue pass pkts between processes.
+    """
+    while (flag_dict['close'] == False):
+        sleep(0.1)
+        if (flag_dict['start'] == True and flag_dict['error'] == False):
+            sleep(0.1)
+            f = InputToFilter(flag_dict)
+            if (f == ""):
+                a = sniff(
+                    iface=flag_dict['iface'],
+                    store=0,
+                    pkt_lst=pkt_lst,
+                    flag_dict=flag_dict,
+                    stopperTimeout=0.2,
+                )
+            else:
+                a = sniff(
+                    iface=flag_dict['iface'],
+                    store=0,
+                    filter=f,
+                    pkt_lst=pkt_lst,
+                    flag_dict=flag_dict,
+                    stopperTimeout=0.2,
+                )
+
+
+"""The following classes are customized class derived from QtWidgets"""
 
 class SearchButton(QtWidgets.QPushButton):
     """
@@ -200,6 +284,17 @@ class Table(QtWidgets.QTableWidget):
     Modify contextMenuEvent to save selected packet(s)
     """
 
+    def leaveEvent(self, event):
+        if (share.last_row != ''):
+            last_row = share.last_row
+            if (share.flag_search):
+                last_low = share.dict_search[last_row]
+            color_list = share.list_packet[last_row].getColor()
+            for i in range(6):
+                self.item(share.last_row, i).setBackground(QtGui.QColor(
+                    color_list[0][0], color_list[0][1], color_list[0][2]))
+            share.last_row = ''
+
     def contextMenuEvent(self, event):
         """Refine contextMenu Event of the QtableWidget.
         
@@ -214,7 +309,7 @@ class Table(QtWidgets.QTableWidget):
                 'Copy selected %d packets' % (len(self.selectedItems()) / 6), self)
         else:
             saveAction = QtWidgets.QAction('Save selected packet', self)
-            copyAction = QtWidgets.QAction('Save selected packet', self)
+            copyAction = QtWidgets.QAction('Copy selected packet', self)
 
         saveAction.triggered.connect(self.SaveReadablePackets)
         saveAction.triggered.connect(self.CopyReadablePackets)
@@ -279,6 +374,187 @@ class Table(QtWidgets.QTableWidget):
                 '\tSave Time:' + datetime.now().strftime("%H:%M:%S") +
                 '\n' + share.list_packet[i].show(dump=True) + '\n')
 
+    def OpenFile(self, filename):
+        """Open file in a new thread to prevent GUI from freezing.
+
+        Args:
+            filename: a string of file location.
+        """
+        os.system(filename)
+
+
+class ColorDelegate(QtWidgets.QStyledItemDelegate):
+    """A new colordelegate class derived from QStyledItemDelegate.
+    
+    Modify every item's selection color in table widget.
+    """
+
+    def paint(self, painter, option, index):
+        """Overwrite original method of selection color
+        
+        Overwrite original method of selection color,
+        ensuring every row's color shows independently,
+        even in multiple selection
+        Args:
+            painter: default parameter
+            option: default parameter
+            index: default parameter
+        """
+        color = index.data(Qt.UserRole)
+        
+        if (color==QColor((18-30)%256,(39-30)%256,(46-30)%256)):
+            option.palette.setColor(QPalette.Highlight, QColor(50,39,46))
+            option.palette.setColor(QPalette.HighlightedText,QColor(247,135,135))
+        else:
+            option.palette.setColor(QPalette.Highlight, color)
+            option.palette.setColor(QPalette.HighlightedText,QColor(18,39,46))
+        QStyledItemDelegate.paint(self, painter, option, index)
+
+
+"""The following classes are customized class derived from QThread"""
+
+class ProcessingThread(QThread):
+    """A class derived from QThread of processing raw packets.
+    
+    The major parsing packets happens here, which is to get each packet from
+    Queue in sniffing process and parse it one by one.
+    """
+
+    AddPacket = pyqtSignal(list)
+    Scroll = pyqtSignal(str)
+
+    def __init__(self, parent=None):
+        QThread.__init__(self, parent=parent)
+        self.isRunning = True
+
+    def run(self):
+        """Run the thread of processing.
+        
+        The dedicated thread to process raw packet, which is to process 
+        each raw packet and make it display in the QTableWidget.
+        """
+        num = 0
+        global pkt_lst
+        while self.isRunning:
+            try:
+                p = pkt_lst.get()
+
+            except:
+                continue
+            list_byte.append(p[0])
+            packet = Ether(p[0])
+            packet.time = p[1]
+            packet.num = num
+            packet = Packet_r(packet)
+
+            # possible preprocess for TCP reassembly
+            if packet.haslayer(TCP):
+                seq = packet.packet[TCP].seq
+                try:
+                    seqlen = len(packet.packet[Raw])
+                except:
+                    seqlen = 0
+                share.tcp_seq[seq] = (packet.num, seqlen)
+
+                try:
+                    fetch_dict = share.dict_expect_tcp_seq[(
+                        packet.src, packet.dst, packet.packet[TCP].sport, packet.packet[TCP].dport)]
+                    seq_expect = fetch_dict[0]
+                    last_syn = fetch_dict[1]
+                    if (seq != seq_expect and last_syn == False):
+                       packet.tcp_order = False
+                except KeyError:
+                    pass
+                binary_flags = bin(int(packet.packet[TCP].flags.split(' ')[0]))[
+                    2:].rjust(7, '0')
+                syn = binary_flags[-2]
+                if (syn == '1'):
+                    syn = True
+                else:
+                    syn = False
+                share.dict_expect_tcp_seq[(
+                    packet.src, packet.dst, packet.packet[TCP].sport, packet.packet[TCP].dport)] = (seq + seqlen, syn)
+
+            # possible preprocess for IP reassembly
+            if packet.haslayer(IP):
+                if packet.packet[IP].flags != 2:
+                    if (packet.packet[IP].src, packet.packet[IP].dst,
+                            packet.packet[IP].id) in share.ip_seq.keys():
+                        share.ip_seq[(packet.packet[IP].src, packet.packet[IP].dst,
+                                      packet.packet[IP].id)].append(
+                            (packet.num, packet.packet[IP].flags,
+                             packet.packet[IP].frag))
+                    else:
+                        share.ip_seq[(packet.packet[IP].src, packet.packet[IP].dst,
+                                      packet.packet[IP].id)] = [(packet.num, packet.packet[IP].flags,
+                                                                 packet.packet[IP].frag)]
+
+            share.list_packet.append(packet)
+            if (share.flag_search == False):
+                l = packet.packet_to_info()
+                l.append(packet.getColor())
+                l.append(num)
+                self.AddPacket.emit(l)
+            share.list_tmp.append(packet.packet_to_info())
+            num += 1
+            if ((share.flag_select == False and share.flag_search == False)
+                    or (share.flag_select == True and share.flag_cancel == True
+                        and share.flag_search == False)):
+                # make the scroll bar update
+                self.Scroll.emit("True")
+
+    def stop(self):
+        self.isRunning = False
+        self.quit()
+        self.wait()
+
+
+class NetworkspeedThread(QThread):
+    """A class derived from QThread of caculating network speed.
+
+    """
+    SetNetworkSpeed = pyqtSignal(list)
+
+    def __init__(self, parent=None):
+        QThread.__init__(self, parent=parent)
+        self.isRunning = True
+
+    def run(self):
+        """The dedicated thread to caculate networkspeed
+
+        """
+        s_up = 0.00
+        s_down = 0.00
+        while (share.mac == ''):
+            sleep(0.5)
+        t0 = time.time()
+        macname = share.dict_mac2name[share.mac]
+        upload = psutil.net_io_counters(pernic=True)[macname][0]
+        download = psutil.net_io_counters(pernic=True)[macname][1]
+        up_down = (upload, download)
+        while self.isRunning:
+            last_up_down = up_down
+            upload = psutil.net_io_counters(pernic=True)[macname][0]
+            download = psutil.net_io_counters(pernic=True)[macname][1]
+            t1 = time.time()
+            up_down = (upload, download)
+            try:
+                s_up, s_down = [(now - last) / (t1 - t0)
+                                for now, last in zip(up_down, last_up_down)]
+                t0 = time.time()
+            except:
+                pass
+
+            time.sleep(0.5)
+            self.SetNetworkSpeed.emit([int(s_up), int(s_down)])
+
+    def stop(self):
+        self.isRunning = False
+        self.quit()
+        self.wait()
+
+
+"""The following classe is the main GUI class"""
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -305,13 +581,13 @@ class Ui_MainWindow(object):
         # add interface name into comboBox
         for i in share.interfaces:
             self.comboBox.addItem(i)
-        self.comboBox.currentTextChanged.connect(self.EVT_COMBOBOX)
+        self.comboBox.currentTextChanged.connect(self.EvtIface)
         # checkbox for max mod
         self.checkBox = QtWidgets.QCheckBox(self.centralwidget)
         self.checkBox.setFont(QFont('Consolas', 10, QFont.Light))
         self.checkBox.setText("OC")
         self.checkBox.setChecked(True)
-        self.checkBox.clicked.connect(self.EvtCheckBoxHigh)
+        self.checkBox.clicked.connect(self.EvtOcMode)
         self.checkBox.setToolTip(
             "OC MODE:\nUsing a dedicated process to sniff continuously,\nwhich may enhance CPU usage.")
         '''1st line layout'''
@@ -390,7 +666,7 @@ class Ui_MainWindow(object):
             os.path.realpath(__file__)) + "\\icons\\searchicon.png"))
         self.searchbutton.setStyleSheet("border: none;background-color: white;")
         self.searchbutton.setFixedSize(30, 30)
-        self.searchbutton.clicked.connect(self.Evtsearch)
+        self.searchbutton.clicked.connect(self.EvtSearch)
         # start/stop button
         self.button = QtWidgets.QPushButton(self.centralwidget)
         self.button.setText("START")
@@ -404,7 +680,7 @@ class Ui_MainWindow(object):
         hbox.addWidget(self.searchbar)
         hbox.addWidget(self.searchbutton)
         hbox.setSpacing(0)
-        self.searchbar.returnPressed.connect(self.Evtsearch)
+        self.searchbar.returnPressed.connect(self.EvtSearch)
 
         '''3nd line layout'''
         self.gridLayout.addLayout(hbox, 2, 0, 1, 10)
@@ -416,6 +692,8 @@ class Ui_MainWindow(object):
         self.tableWidget.horizontalHeader().setFont(QFont('Consolas', 11, QFont.Light))
         self.tableWidget.setSizeAdjustPolicy(
             QtWidgets.QAbstractScrollArea.AdjustToContents)
+        #No border when focus
+        self.tableWidget.setFocusPolicy(Qt.NoFocus)
         self.tableWidget.setMinimumHeight(50)
         self.tableWidget.setColumnCount(6)
         self.tableWidget.verticalHeader().setVisible(False)
@@ -433,14 +711,15 @@ class Ui_MainWindow(object):
         self.tableWidget.horizontalHeader().setStretchLastSection(True)
         self.tableWidget.setShowGrid(False)
         self.tableWidget.setFont(QFont('Consolas', 10, QFont.Light))
-
         self.tableWidget.itemSelectionChanged.connect(self.EvtSelect)
-        self.tableWidget.itemDoubleClicked.connect(self.cancel)
-        self.tableWidget.cellEntered.connect(self.handleItemEntered)
-
+        self.tableWidget.itemDoubleClicked.connect(self.EvtCancelFreeze)
+        self.tableWidget.cellEntered.connect(self.EvtMouseOnRow)
+        #colordelegate for every row
+        self.tableWidget.setItemDelegate(ColorDelegate())
         #select a row when clicking
         self.tableWidget.setSelectionBehavior(QTableWidget.SelectRows)
         self.tableWidget.setMouseTracking(True)
+        #self.tableWidget.setStyleSheet("QTableWidget::item:selected{ background-color: rgba(255, 0, 0, 10%)}")
 
         # QThread to receive signal of adding and scrolling
         self.th = ProcessingThread()
@@ -537,116 +816,7 @@ class Ui_MainWindow(object):
         self.MainWindow.setWindowTitle(self.title)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
-    def ColorMode(self):
-        """Change Color Mode
-        
-        Reverse the colorModeStatus flag every time triggered.
-        """
-        self.colorModeStatus = not self.colorModeStatus
-
-    def EvtCheckBoxHigh(self):
-        """Set OC mode settings.
-
-        The event for selecting the mode of mulitiprocessing 
-        for the higher-end performance, which is to save it for filter(default:on).
-        """
-        global flag_dict
-        flag_dict['max'] = self.checkBox.isChecked()
-
-    def Evtsearch(self):
-        """Event of searching keywords.
-        
-        The event for entering keywords in search bar and using 'ENTER' to proceed, 
-        which is to show the results containing keywords.The packet list shown in GUI 
-        will immediately stop updating while the backend is still sniffering.In other words, 
-        one can only search the packets sniffed according to what have been sniffed.
-        Clear the search bar and all packets sniffed in the backend will start updating again, 
-        even in the period of seaching
-        """
-        self.tableWidget.setRowCount(0)
-        share.flag_search = True
-        keyword = self.searchbar.text()
-        after_search_index = 0
-        for i in range(len(share.list_tmp)):
-            try:
-                # keywords can exist in raw/utf-8/GB2312 packet
-                sentence = share.list_packet[i].packet_to_all().lower()
-                sentence += share.list_packet[i].packet_to_load_gb().lower()
-                sentence += share.list_packet[i].packet_to_load_utf8().lower()
-            except:
-                pass
-            if (keyword.lower() in sentence):
-                share.dict_search[after_search_index] = i
-                self.tableWidget.insertRow(after_search_index)
-                color_list = share.list_packet[int(
-                    share.list_tmp[i][0])].getColor()
-                for j in range(6):
-                    item = QTableWidgetItem(share.list_tmp[i][j])
-                    if (self.colorModeStatus):
-                        item.setBackground(QtGui.QColor(
-                            color_list[0][0], color_list[0][1], color_list[0][2]))
-                        item.setForeground(QtGui.QColor(
-                            color_list[1][0], color_list[1][1], color_list[1][2]))
-                    self.tableWidget.setItem(after_search_index, j, item)
-                after_search_index += 1
-        if (keyword == ""):
-            # if nothing is in the searchbar, return the whole result and keep sniffering
-            share.flag_search = False
-            share.flag_select = False
-
-    def SetSpeedOnStatusBar(self, l):
-        """Set speed label text on status bar.
-        
-        The right corner of status bar will constantly show speed.
-        Args:
-            l: [speed_up,speed_down] emitted from QThread
-        """
-
-        s_up = l[0]
-        s_down = l[1]
-        if s_up // 1024 < 1:
-            speed_up = str(round(s_up, 1)) + "Bps"
-        elif s_up // 1024 ** 2 < 1:
-            speed_up = str(round(s_up / 1024, 1)) + 'KBps'
-        elif s_up // 1024 ** 3 < 1:
-            speed_up = str(round(s_up / 1024 ** 2, 1)) + "MBps"
-        if s_down // 1024 < 1:
-            speed_down = str(round(s_down, 1)) + "Bps"
-        elif s_up // 1024 ** 2 < 1:
-            speed_down = str(round(s_down / 1024, 1)) + 'KBps'
-        elif s_up // 1024 ** 3 < 1:
-            speed_down = str(round(s_down / 1024 ** 2, 1)) + "MBps"
-        title = '  ↓ %s  ↑ %s' % (speed_down.rjust(10), speed_up.rjust(10))
-        self.speedlabel.setText(title)
-
-    def ScrollToEnd(self, l):
-        """Make the QTableWidget to scroll to end.
-        
-        Make the QTableWidget to scroll to end whenever received signal
-        from QThread.
-        Args:
-            l: string means nothing, only to fit the signal requirements
-        """
-        self.tableWidget.scrollToBottom()
-
-    def AddPacketToTable(self, l):
-        """Add packet's info to QTableWidget
-        
-        Add packet's info to QTableWidget whenever received signal
-        from QThread.
-        Args:
-            l: [num,time,src,dst,len,protocol,color(r,g,b)]
-        """
-        num = l[-1]
-        self.tableWidget.insertRow(num)
-        for i in range(6):
-            item = QTableWidgetItem(l[i])
-            if (self.colorModeStatus):
-                item.setBackground(QtGui.QColor(l[-2][0][0], l[-2][0][1], l[-2][0][2]))
-                item.setForeground(QtGui.QColor(l[-2][1][0], l[-2][1][1], l[-2][1][2]))
-            self.tableWidget.setItem(num, i, item)
-
-    def EVT_COMBOBOX(self):
+    def EvtIface(self):
         """Event when combobox changes.
         
         The event for selecting the Network Interface in Combobox, 
@@ -702,6 +872,15 @@ class Ui_MainWindow(object):
         global flag_dict
         flag_dict['dport'] = self.dport.text()
 
+    def EvtOcMode(self):
+        """Set OC mode settings.
+
+        The event for selecting the mode of mulitiprocessing 
+        for the higher-end performance, which is to save it for filter(default:on).
+        """
+        global flag_dict
+        flag_dict['max'] = self.checkBox.isChecked()
+
     def EvtStart(self):
         """Event when Start button changes.
         
@@ -711,7 +890,8 @@ class Ui_MainWindow(object):
         global flag_dict
         flag_dict['start'] = not flag_dict['start']
         if (flag_dict['start']):
-            filterstr=InputToFilter(flag_dict) if (InputToFilter(flag_dict)!="") else "ALL"
+            filterstr = InputToFilter(flag_dict) if (
+                InputToFilter(flag_dict) != "") else "ALL"
             self.button.setText('Stop')
             title = self.title + " - " + \
                 flag_dict["iface"] + " - " + \
@@ -725,10 +905,26 @@ class Ui_MainWindow(object):
             self.button.setText('Start')
             self.MainWindow.setWindowTitle(self.title)
 
-    def handleItemEntered(self, row, column):
-        """move cursor on item"""
-        '''for i in range(self.tabWidget.count()):
-            self.tabWidget.removeTab(i)'''
+    def EvtMouseOnRow(self, row, column):
+        if (self.colorModeStatus == False):
+            share.last_row = ''
+        else:
+            if (share.last_row != ''):
+                last_row = share.last_row
+                if (share.flag_search):
+                    last_row = share.dict_search[share.last_row]
+                color_list = share.list_packet[last_row].getColor()
+                for i in range(6):
+                    self.tableWidget.item(share.last_row, i).setBackground(QtGui.QColor(
+                        color_list[0][0], color_list[0][1], color_list[0][2]))
+
+            share.last_row = row
+            if (share.flag_search):
+                row = share.dict_search[row]
+            color_list = share.list_packet[row].getColor()
+            for i in range(6):
+                self.tableWidget.item(share.last_row, i).setBackground(QtGui.QColor(
+                    (color_list[0][0] - 10) % 256, (color_list[0][1] - 10) % 256, (color_list[0][2] - 10) % 256))
 
     def EvtSelect(self):
         """Event when select a row(packet)
@@ -738,14 +934,17 @@ class Ui_MainWindow(object):
 
         """
         QtCore.QCoreApplication.processEvents()
+
         try:
             self.continue_reassemble_button.hide()
             self.save_reassemble_button.hide()
             self.pbar.hide()
         except:
             pass
+        
         for i in self.tableWidget.selectedItems():
             val = i.row()
+        
         if (share.flag_search == True):
             try:
                 val = share.dict_search[val]
@@ -753,18 +952,23 @@ class Ui_MainWindow(object):
                 return
         share.flag_select = True
         share.flag_cancel = False
+        
         try:
             self.val = val
         except UnboundLocalError:
             return
+        
         self.final_tcp_seq = ""
         self.final_ip_seq = ""
         self.http_content = ""
         count = self.tabWidget.count()
+        
         for i in range(self.tabWidget.count()):
             self.tabWidget.removeTab(0)
+        
         for i in range(self.tabWidget_2.count()):
             self.tabWidget_2.removeTab(0)
+        
         try:
             layerlist = share.list_packet[val].packet_to_layerlist()
         except UnboundLocalError:
@@ -779,15 +983,17 @@ class Ui_MainWindow(object):
                 s = s + \
                     "%-10s%s\n" % ((key[0].upper() + key[1:] + ":"), i[1][key])
             self.CreateNewTab(self.tabWidget, i[0], s)
+        
         try:
             s = ""
-            s = s + "No. " + str(val) + "\n" + i[0]+"\n"
-            self.CreateNewTab(self.tabWidget, "Load in UTF-8:",
+            s = s + "No. " + str(val) + "\n" + i[0] + "\n"
+            self.CreateNewTab(self.tabWidget, "Load in UTF-8",
                               s + "Decoded by UTF-8:\n" + share.list_packet[val].packet_to_load_utf8())
             self.CreateNewTab(self.tabWidget, "Load in GB2312",
                               s + "Decoded by GB2312:\n" + share.list_packet[val].packet_to_load_gb())
         except:  # no load or decode error
             pass
+        
         self.CreateNewTab(self.tabWidget, "Whole in hex",
                           share.list_packet[val].hexdump())
 
@@ -808,7 +1014,6 @@ class Ui_MainWindow(object):
                     self.final_tcp_seq = packet_tcp_seq(i[1]["seq"])
                 except:
                     self.final_tcp_seq = 'Too large to assemble'
-                self.final_tcp_seq = packet_tcp_seq(i[1]["seq"])
         self.reassemble_size = 0
         """TCP"""
         if (self.final_tcp_seq != ""):  # Satisify TCP reassembly
@@ -873,119 +1078,48 @@ class Ui_MainWindow(object):
             self.save_reassemble_button.show()
             return
 
-    def ShowIpResult(self):
-        """Show Ip reassembly result in tab2.
+    def EvtSearch(self):
+        """Event of searching keywords.
         
-        Show Ip reassembly result in tab2, supporting plain,utf8 and GB2312 decoded.
+        The event for entering keywords in search bar and using 'ENTER' to proceed, 
+        which is to show the results containing keywords.The packet list shown in GUI 
+        will immediately stop updating while the backend is still sniffering.In other words, 
+        one can only search the packets sniffed according to what have been sniffed.
+        Clear the search bar and all packets sniffed in the backend will start updating again, 
+        even in the period of seaching
         """
-        s = "After reassembly:\n"
-        s_gb = s_utf8 = s_raw = ""
-        for i in self.final_ip_seq:
-            s_raw = s_raw + share.list_packet[i[0]].packet_to_load_plain()
-            s_gb = s_gb + share.list_packet[i[0]].packet_to_load_gb()
-            s_utf8 = s_utf8 + share.list_packet[i[0]].packet_to_load_utf8()
-
-        self.file_content = s_utf8
-        q = ""
-        q = q + "".join(packet_align(s_raw))
-        s_gb = s + "\n" + "Decoded by GB2312:" + "\n" + s_gb
-        s_utf8 = s + "\n" + "Decoded by UTF8:" + "\n" + s_utf8
-        s_raw = s + "\n" + "Raw bytes:" + "\n" + q
-        self.CreateNewTab(self.tabWidget_2, "IP reassemble Hex", s_raw)
-        self.CreateNewTab(self.tabWidget_2, "IP reassemble UTF-8", s_utf8)
-        self.CreateNewTab(self.tabWidget_2, "IP reassemble GB2312", s_gb)
-
-    def ShowTcpResult(self):
-        """Show TCP reassembly result in tab2.
-        
-        Show Ip reassembly result in tab2, supporting plain,utf8 and GB2312 decoded.
-        ***Support `ANSI ESCAPE CODE`,especially on telnet.
-        ***Support parsing HTTP header/content.
-        """
-        s = "After reassembly:\n"
-        s_gb = s_utf8 = s_raw = ""
-        try:
-            first_index = self.final_tcp_seq[0][1][0]
-            content = b''
-            for i in self.final_tcp_seq:
-                QtCore.QCoreApplication.processEvents()
-                content += share.list_packet[i[1][0]].load
-            response = HttpConverter(content).getcontent()
-            h = ""
-            for i in response.headers:
-                QtCore.QCoreApplication.processEvents()
-                h += str(i) + " : " + str(response.headers[i]) + "\n"
-            s = "No. " + \
-                str(self.val) + \
-                " can be TCP assembled by following %d packet" % len(
-                    self.final_tcp_seq)
-            if (len(self.final_tcp_seq) > 1):
-                s += "s"
-            s += ":\n"
-
-            for i in self.final_tcp_seq:
-                QtCore.QCoreApplication.processEvents()
-                s = s + "No. " + str(i[1][0]) + ", "
-            s = s[:-2] + "\n" + "After reassembly:" + "\n" + "\n"
+        self.tableWidget.setRowCount(0)
+        share.flag_search = True
+        keyword = self.searchbar.text()
+        after_search_index = 0
+        for i in range(len(share.list_tmp)):
             try:
-                content = response.data
+                # keywords can exist in raw/utf-8/GB2312 packet
+                sentence = share.list_packet[i].packet_to_all().lower()
+                sentence += share.list_packet[i].packet_to_load_gb().lower()
+                sentence += share.list_packet[i].packet_to_load_utf8().lower()
             except:
                 pass
-            self.file_content = content
-            self.http_content = content
-            h = "HTTP Header in No. " + str(first_index) + '\n' + h
-
-            self.CreateNewTab(self.tabWidget_2, "HTTP HEADER", h)
-            print(content)
-            self.CreateNewTab(self.tabWidget_2, "HTTP CONTENT",
-                              s + str(content)[2:-1])
-        except:
-            self.file_content = b""
-            for i in self.final_tcp_seq:
-                QtCore.QCoreApplication.processEvents()
-                try:
-                    self.file_content += share.list_packet[i[1][0]].load
-                except:
-                    pass
-
-                s_raw = s_raw + \
-                    share.list_packet[i[1][0]].packet_to_load_plain()
-                if (i[1][1] != 0):
-                    s_gb = s_gb + share.list_packet[i[1][0]].packet_to_load_gb(ignore=True)
-                    s_utf8 = s_utf8 + \
-                        share.list_packet[i[1][0]].packet_to_load_utf8()
-            q = ""
-            q = q + "".join(packet_align(s_raw))
-            s_gb = s + "\n" + "Decoded by GB2312:" + "\n" + s_gb
-            s_utf8 = s + "\n" + "Decoded by UTF8:" + "\n" + s_utf8
-            s_raw = s + "\n" + "Raw bytes:" + "\n" + q
-
-            if ('\033[') in s_gb:
-                """Add a new tab showing ANSI Escape Code
-
-                Detect the data may contain ANSI Escape Code.
-                Using `ansi2html` library to parse it to css and show.
-                """        
-                a = QtWidgets.QTextBrowser()
-                a.setFrameStyle(QFrame.NoFrame)
-    
-                conv = Ansi2HTMLConverter()
-                html = conv.convert(s_gb)
-                html=str.replace(html,"\n</span>","</span>")
-                #somehow QyQt has different between html in memory and file
-                f=open("temp.html","w")
-                f.write(html)
-                f.close()
-                with open('temp.html', 'r') as content_file:
-                    content = content_file.read()
-                a.setHtml(content)
-                content_file.close()
-                self.tabWidget_2.addTab(
-                    a, 'Console Type(Parsing ANSI Escape Code)')
-
-            self.CreateNewTab(self.tabWidget_2, "TCP reassemble Hex", s_raw)
-            self.CreateNewTab(self.tabWidget_2, "TCP reassemble UTF-8", s_utf8)
-            self.CreateNewTab(self.tabWidget_2, "TCP reassemble GB2312", s_gb)
+            if (keyword.lower() in sentence):
+                share.dict_search[after_search_index] = i
+                self.tableWidget.insertRow(after_search_index)
+                color_list = share.list_packet[int(
+                    share.list_tmp[i][0])].getColor()
+                for j in range(6):
+                    item = QTableWidgetItem(share.list_tmp[i][j])
+                    if (self.colorModeStatus):
+                        item.setBackground(QtGui.QColor(
+                            color_list[0][0], color_list[0][1], color_list[0][2]))
+                        item.setForeground(QtGui.QColor(
+                            color_list[1][0], color_list[1][1], color_list[1][2]))
+                        item.setData(Qt.UserRole, QtGui.QColor(
+                            (color_list[0][0] - 30) % 256, (color_list[0][1] - 30) % 256, (color_list[0][2] - 30) % 256))
+                    self.tableWidget.setItem(after_search_index, j, item)
+                after_search_index += 1
+        if (keyword == ""):
+            # if nothing is in the searchbar, return the whole result and keep sniffering
+            share.flag_search = False
+            share.flag_select = False
 
     def EvtContinueReassemble(self):
         """Continue to Reassemble when the fragments' number>2000
@@ -1049,6 +1183,191 @@ class Ui_MainWindow(object):
         t = Thread(target=self.OpenFile, args=(filename,))
         t.start()
 
+    def EvtCancelFreeze(self):
+        share.flag_cancel = True
+
+    def ColorMode(self):
+        """Change Color Mode
+        
+        Reverse the colorModeStatus flag every time triggered.
+        """
+        self.colorModeStatus = not self.colorModeStatus
+    
+    def SetSpeedOnStatusBar(self, l):
+        """Set speed label text on status bar.
+        
+        The right corner of status bar will constantly show speed.
+        Args:
+            l: [speed_up,speed_down] emitted from QThread
+        """
+
+        s_up = l[0]
+        s_down = l[1]
+        if s_up // 1024 < 1:
+            speed_up = str(round(s_up, 1)) + "Bps"
+        elif s_up // 1024 ** 2 < 1:
+            speed_up = str(round(s_up / 1024, 1)) + 'KBps'
+        elif s_up // 1024 ** 3 < 1:
+            speed_up = str(round(s_up / 1024 ** 2, 1)) + "MBps"
+        if s_down // 1024 < 1:
+            speed_down = str(round(s_down, 1)) + "Bps"
+        elif s_up // 1024 ** 2 < 1:
+            speed_down = str(round(s_down / 1024, 1)) + 'KBps'
+        elif s_up // 1024 ** 3 < 1:
+            speed_down = str(round(s_down / 1024 ** 2, 1)) + "MBps"
+        title = '  ↓ %s  ↑ %s' % (speed_down.rjust(10), speed_up.rjust(10))
+        self.speedlabel.setText(title)
+
+    def ScrollToEnd(self, l):
+        """Make the QTableWidget to scroll to end.
+        
+        Make the QTableWidget to scroll to end whenever received signal
+        from QThread.
+        Args:
+            l: string means nothing, only to fit the signal requirements
+        """
+        self.tableWidget.scrollToBottom()
+
+    def AddPacketToTable(self, l):
+        """Add packet's info to QTableWidget
+    
+        Add packet's info to QTableWidget whenever received signal
+        from QThread.
+        Args:
+            l: [num,time,src,dst,len,protocol,(background-color(r,g,b),font-color(r,g,b)]
+        """
+        num = l[-1]
+        self.tableWidget.insertRow(num)
+        for i in range(6):
+            item = QTableWidgetItem(l[i])
+            if (self.colorModeStatus):
+                item.setBackground(QtGui.QColor(
+                    l[-2][0][0], l[-2][0][1], l[-2][0][2]))
+                item.setForeground(QtGui.QColor(
+                    l[-2][1][0], l[-2][1][1], l[-2][1][2]))
+                item.setData(Qt.UserRole, QtGui.QColor(
+                    (l[-2][0][0] - 30) % 256, (l[-2][0][1] - 30) % 256, (l[-2][0][2] - 30) % 256))
+            self.tableWidget.setItem(num, i, item)
+
+    def ShowIpResult(self):
+        """Show Ip reassembly result in tab2.
+        
+        Show Ip reassembly result in tab2, supporting plain,utf8 and GB2312 decoded.
+        """
+        s = "After reassembly:\n"
+        s_gb = s_utf8 = s_raw = ""
+        for i in self.final_ip_seq:
+            s_raw = s_raw + share.list_packet[i[0]].packet_to_load_plain()
+            s_gb = s_gb + share.list_packet[i[0]].packet_to_load_gb()
+            s_utf8 = s_utf8 + share.list_packet[i[0]].packet_to_load_utf8()
+
+        self.file_content = s_utf8
+        q = ""
+        q = q + "".join(packet_align(s_raw))
+        s_gb = s + "\n" + "Decoded by GB2312:" + "\n" + s_gb
+        s_utf8 = s + "\n" + "Decoded by UTF8:" + "\n" + s_utf8
+        s_raw = s + "\n" + "Raw bytes:" + "\n" + q
+        self.CreateNewTab(self.tabWidget_2, "IP reassemble Hex", s_raw)
+        self.CreateNewTab(self.tabWidget_2, "IP reassemble UTF-8", s_utf8)
+        self.CreateNewTab(self.tabWidget_2, "IP reassemble GB2312", s_gb)
+
+    def ShowTcpResult(self):
+        """Show TCP reassembly result in tab2.
+        
+        Show Ip reassembly result in tab2, supporting plain,utf8 and GB2312 decoded.
+        ***Support `ANSI ESCAPE CODE`,especially on telnet.
+        ***Support parsing HTTP header/content.
+        """
+        s = "After reassembly:\n"
+        s_gb = s_utf8 = s_raw = ""
+        try:
+            first_index = self.final_tcp_seq[0][1][0]
+            content = b''
+            for i in self.final_tcp_seq:
+                QtCore.QCoreApplication.processEvents()
+                content += share.list_packet[i[1][0]].load
+            response = HttpConverter(content).getcontent()
+            
+            h = ""
+            for i in response.headers:
+                QtCore.QCoreApplication.processEvents()
+                h += str(i) + " : " + str(response.headers[i]) + "\n"
+            s = "No. " + \
+                str(self.val) + \
+                " can be TCP assembled by following %d packet" % len(
+                    self.final_tcp_seq)
+            if (len(self.final_tcp_seq) > 1):
+                s += "s"
+            s += ":\n"
+
+            for i in self.final_tcp_seq:
+                QtCore.QCoreApplication.processEvents()
+                s = s + "No. " + str(i[1][0]) + ", "
+            s = s[:-2] + "\n" + "After reassembly:" + "\n" + "\n"
+            try:
+                content = response.data
+                content=content.decode('utf8')
+            except:
+                content=str(content)[2:-1]
+            
+            self.http_content = response.data
+            h = "HTTP Header in No. " + str(first_index) + '\n' + h
+
+            self.CreateNewTab(self.tabWidget_2, "HTTP HEADER", h)
+            
+            self.CreateNewTab(self.tabWidget_2, "HTTP CONTENT",
+                              s+content)
+        except:
+            self.file_content = b""
+            for i in self.final_tcp_seq:
+                QtCore.QCoreApplication.processEvents()
+                try:
+                    self.file_content += share.list_packet[i[1][0]].load
+                except:
+                    pass
+
+                s_raw = s_raw + \
+                    share.list_packet[i[1][0]].packet_to_load_plain()
+                if (i[1][1] != 0):
+                    s_gb = s_gb + \
+                        share.list_packet[i[1][0]].packet_to_load_gb(
+                            ignore=True)
+                    s_utf8 = s_utf8 + \
+                        share.list_packet[i[1][0]].packet_to_load_utf8()
+            q = ""
+            q = q + "".join(packet_align(s_raw))
+            s_gb = s + "\n" + "Decoded by GB2312:" + "\n" + s_gb
+            s_utf8 = s + "\n" + "Decoded by UTF8:" + "\n" + s_utf8
+            s_raw = s + "\n" + "Raw bytes:" + "\n" + q
+
+            if ('\033[') in s_gb:
+                """Add a new tab showing ANSI Escape Code
+
+                Detect the data may contain ANSI Escape Code.
+                Using `ansi2html` library to parse it to css and show.
+                """
+                a = QtWidgets.QTextBrowser()
+                a.setFrameStyle(QFrame.NoFrame)
+
+                conv = Ansi2HTMLConverter()
+                html = conv.convert(s_gb)
+                html = str.replace(html, "\n</span>", "</span>")
+                #somehow QyQt has different between html in memory and file
+                f = open("temp.html", "w")
+                f.write(html)
+                f.close()
+                with open('temp.html', 'r') as content_file:
+                    content = content_file.read()
+                a.setHtml(content)
+                content_file.close()
+                os.remove('temp.html')
+                self.tabWidget_2.addTab(
+                    a, 'Console Type(Parsing ANSI Escape Code)')
+
+            self.CreateNewTab(self.tabWidget_2, "TCP reassemble Hex", s_raw)
+            self.CreateNewTab(self.tabWidget_2, "TCP reassemble UTF-8", s_utf8)
+            self.CreateNewTab(self.tabWidget_2, "TCP reassemble GB2312", s_gb)
+
     def OpenFile(self, filename):
         """Open file in a new thread to prevent GUI from freezing.
 
@@ -1070,200 +1389,6 @@ class Ui_MainWindow(object):
         a.setText(content)
         a.setFont(QFont('Consolas', 10, QFont.Light))
         tab.addTab(a, title)
-
-    def cancel(self):
-        share.flag_cancel = True
-
-
-class ProcessingThread(QThread):
-    """A class derived from QThread of processing raw packets.
-    
-    The major parsing packets happens here, which is to get each packet from
-    Queue in sniffing process and parse it one by one.
-    """
-
-    AddPacket = pyqtSignal(list)
-    Scroll = pyqtSignal(str)
-
-    def __init__(self, parent=None):
-        QThread.__init__(self, parent=parent)
-        self.isRunning = True
-
-    def run(self):
-        """Run the thread of processing.
-        
-        The dedicated thread to process raw packet, which is to process 
-        each raw packet and make it display in the QTableWidget.
-        """
-        num = 0
-        global pkt_lst
-        while self.isRunning:
-            try:
-                p = pkt_lst.get()
-
-            except:
-                continue
-            list_byte.append(p[0])
-            packet = Ether(p[0])
-            packet.time = p[1]
-            packet.num = num
-            packet = Packet_r(packet)
-            
-            # possible preprocess for TCP reassembly
-            if packet.haslayer(TCP):
-                seq = packet.packet[TCP].seq
-                try:
-                    seqlen = len(packet.packet[Raw])
-                except:
-                    seqlen = 0
-                share.tcp_seq[seq] = (packet.num, seqlen)
-
-                try:
-                    if (seq!=share.dict_expect_tcp_seq[(packet.src,packet.dst,packet.packet[TCP].sport,packet.packet[TCP].dport)]):
-                       packet.tcp_order=False
-                except KeyError:
-                    pass
-                share.dict_expect_tcp_seq[(packet.src,packet.dst,packet.packet[TCP].sport,packet.packet[TCP].dport)]=seq+seqlen
-                print (seq,seqlen)
-
-            # possible preprocess for IP reassembly
-            if packet.haslayer(IP):
-                if packet.packet[IP].flags != 2:
-                    if (packet.packet[IP].src, packet.packet[IP].dst,
-                            packet.packet[IP].id) in share.ip_seq.keys():
-                        share.ip_seq[(packet.packet[IP].src, packet.packet[IP].dst,
-                                      packet.packet[IP].id)].append(
-                            (packet.num, packet.packet[IP].flags,
-                             packet.packet[IP].frag))
-                    else:
-                        share.ip_seq[(packet.packet[IP].src, packet.packet[IP].dst,
-                                      packet.packet[IP].id)] = [(packet.num, packet.packet[IP].flags,
-                                                                 packet.packet[IP].frag)]
-
-            share.list_packet.append(packet)
-            if (share.flag_search == False):
-                l = packet.packet_to_info()
-                l.append(packet.getColor())
-                l.append(num)
-                self.AddPacket.emit(l)
-            share.list_tmp.append(packet.packet_to_info())
-            num += 1
-            if ((share.flag_select == False and share.flag_search == False)
-                    or (share.flag_select == True and share.flag_cancel == True
-                        and share.flag_search == False)):
-                # make the scroll bar update
-                self.Scroll.emit("True")
-
-    def stop(self):
-        self.isRunning = False
-        self.quit()
-        self.wait()
-
-
-class NetworkspeedThread(QThread):
-    """A class derived from QThread of caculating network speed.
-
-    """
-    SetNetworkSpeed = pyqtSignal(list)
-
-    def __init__(self, parent=None):
-        QThread.__init__(self, parent=parent)
-        self.isRunning = True
-
-    def run(self):
-        """The dedicated thread to caculate networkspeed
-
-        """
-        s_up = 0.00
-        s_down = 0.00
-        while (share.mac == ''):
-            sleep(0.5)
-        t0 = time.time()
-        macname = share.dict_mac2name[share.mac]
-        upload = psutil.net_io_counters(pernic=True)[macname][0]
-        download = psutil.net_io_counters(pernic=True)[macname][1]
-        up_down = (upload, download)
-        while self.isRunning:
-            last_up_down = up_down
-            upload = psutil.net_io_counters(pernic=True)[macname][0]
-            download = psutil.net_io_counters(pernic=True)[macname][1]
-            t1 = time.time()
-            up_down = (upload, download)
-            try:
-                s_up, s_down = [(now - last) / (t1 - t0)
-                                for now, last in zip(up_down, last_up_down)]
-                t0 = time.time()
-            except:
-                pass
-
-            time.sleep(0.5)
-            self.SetNetworkSpeed.emit([int(s_up), int(s_down)])
-
-    def stop(self):
-        self.isRunning = False
-        self.quit()
-        self.wait()
-
-
-def InputToFilter(flag_dict):
-    """Return the filter string of input.
-    
-    Return the filter string of input when the dict is given.
-    Args:
-        flag_dict: manager.dict, pass args between processes.
-    
-    Returns:
-        f:string of the filter satisfying BPF filter rules
-    """
-
-    f = ""
-    if (flag_dict['close'] == False):
-        for key in flag_dict.keys():
-            if (flag_dict[key] != ''):
-                if (key == 'pro'):
-                    f += " and " + flag_dict['pro']
-                elif (key == 'src' or key == 'dst'):
-                    f += " and " + key + " " + flag_dict[key]
-                elif (key == 'sport'):
-                    f += " and src port " + flag_dict['sport']
-                elif (key == 'dport'):
-                    f += " and dst port " + flag_dict['dport']
-        f = f[5:]
-    return f
-
-
-def InfiniteProcess(flag_dict, pkt_lst):
-    """The infinite process of sniffing.
-
-    The dedicated process to sniff, which is to get the iface and filter and then starting sniffing.
-    Args:
-        flag_dict: manager.dict  pass args between processes.
-        pkt_lst:   manager.queue pass pkts between processes.
-    """
-
-    """"""
-    while (flag_dict['close'] == False):
-        sleep(0.1)
-        if (flag_dict['start'] == True and flag_dict['error'] == False):
-            sleep(0.1)
-            f = InputToFilter(flag_dict)
-            if (f == ""):
-                a = sniff(
-                    iface=flag_dict['iface'],
-                    store=0,
-                    pkt_lst=pkt_lst,
-                    flag_dict=flag_dict,
-                    stopperTimeout=0.2,
-                )
-            else:
-                a = sniff(
-                    iface=flag_dict['iface'],
-                    store=0,
-                    filter=f,
-                    pkt_lst=pkt_lst,
-                    flag_dict=flag_dict,
-                    stopperTimeout=0.2,
-                )
 
 
 if __name__ == "__main__":
@@ -1311,9 +1436,13 @@ if __name__ == "__main__":
     p.start()
     flag_dict["select"] = False
 
+    #To show icon correctly in taskbar 
+    import ctypes
+    myappid = 'sniffer v2.0' # arbitrary string
+    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+
     w = QtWidgets.QMainWindow()
     ex = Ui_MainWindow()
-
     ex.setupUi(w)
     w.show()
     sys.exit(app.exec_())
