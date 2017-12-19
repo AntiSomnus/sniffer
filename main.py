@@ -438,73 +438,75 @@ class ProcessingThread(QThread):
         num = 0
         global pkt_lst
         while self.isRunning:
-            try:
-                p = pkt_lst.get()
-
-            except:
-                continue
-            list_byte.append(p[0])
-            packet = Ether(p[0])
-            packet.time = p[1]
-            packet.num = num
-            packet = Packet_r(packet)
-
-            # possible preprocess for TCP reassembly
-            if packet.haslayer(TCP):
-                seq = packet.packet[TCP].seq
+            if (share.flag_search==False):
                 try:
-                    seqlen = len(packet.packet[Raw])
+                    p = pkt_lst.get()
+
                 except:
-                    seqlen = 0
-                share.tcp_seq[seq] = (packet.num, seqlen)
+                    continue
+                list_byte.append(p[0])
+                packet = Ether(p[0])
+                packet.time = p[1]
+                packet.num = num
+                packet = Packet_r(packet)
 
-                try:
-                    fetch_dict = share.dict_expect_tcp_seq[(
-                        packet.src, packet.dst, packet.packet[TCP].sport, packet.packet[TCP].dport)]
-                    seq_expect = fetch_dict[0]
-                    last_syn = fetch_dict[1]
-                    if (seq != seq_expect and last_syn == False):
-                       packet.tcp_order = False
-                except KeyError:
-                    pass
-                binary_flags = bin(int(packet.packet[TCP].flags.split(' ')[0]))[
-                    2:].rjust(7, '0')
-                syn = binary_flags[-2]
-                if (syn == '1'):
-                    syn = True
-                else:
-                    syn = False
-                share.dict_expect_tcp_seq[(
-                    packet.src, packet.dst, packet.packet[TCP].sport, packet.packet[TCP].dport)] = (seq + seqlen, syn)
+                # possible preprocess for TCP reassembly
+                if packet.haslayer(TCP):
+                    seq = packet.packet[TCP].seq
+                    try:
+                        seqlen = len(packet.packet[Raw])
+                    except:
+                        seqlen = 0
+                    share.tcp_seq[seq] = (packet.num, seqlen)
 
-            # possible preprocess for IP reassembly
-            if packet.haslayer(IP):
-                if packet.packet[IP].flags != 2:
-                    if (packet.packet[IP].src, packet.packet[IP].dst,
-                            packet.packet[IP].id) in share.ip_seq.keys():
-                        share.ip_seq[(packet.packet[IP].src, packet.packet[IP].dst,
-                                      packet.packet[IP].id)].append(
-                            (packet.num, packet.packet[IP].flags,
-                             packet.packet[IP].frag))
+                    try:
+                        fetch_dict = share.dict_expect_tcp_seq[(
+                            packet.src, packet.dst, packet.packet[TCP].sport, packet.packet[TCP].dport)]
+                        seq_expect = fetch_dict[0]
+                        last_syn = fetch_dict[1]
+                        if (seq != seq_expect and last_syn == False):
+                            packet.tcp_order = False
+                    except KeyError:
+                        pass
+                    binary_flags = bin(int(packet.packet[TCP].flags.split(' ')[0]))[
+                        2:].rjust(7, '0')
+                    syn = binary_flags[-2]
+                    if (syn == '1'):
+                        syn = True
                     else:
-                        share.ip_seq[(packet.packet[IP].src, packet.packet[IP].dst,
-                                      packet.packet[IP].id)] = [(packet.num, packet.packet[IP].flags,
-                                                                 packet.packet[IP].frag)]
+                        syn = False
+                    share.dict_expect_tcp_seq[(
+                        packet.src, packet.dst, packet.packet[TCP].sport, packet.packet[TCP].dport)] = (seq + seqlen, syn)
 
-            share.list_packet.append(packet)
-            if (share.flag_search == False):
-                l = packet.packet_to_info()
-                l.append(packet.getColor())
-                l.append(num)
-                self.AddPacket.emit(l)
-            share.list_tmp.append(packet.packet_to_info())
-            num += 1
-            if ((share.flag_select == False and share.flag_search == False)
-                    or (share.flag_select == True and share.flag_cancel == True
-                        and share.flag_search == False)):
-                # make the scroll bar update
-                self.Scroll.emit("True")
+                # possible preprocess for IP reassembly
+                if packet.haslayer(IP):
+                    if packet.packet[IP].flags != 2:
+                        if (packet.packet[IP].src, packet.packet[IP].dst,
+                                packet.packet[IP].id) in share.ip_seq.keys():
+                            share.ip_seq[(packet.packet[IP].src, packet.packet[IP].dst,
+                                        packet.packet[IP].id)].append(
+                                (packet.num, packet.packet[IP].flags,
+                                packet.packet[IP].frag))
+                        else:
+                            share.ip_seq[(packet.packet[IP].src, packet.packet[IP].dst,
+                                        packet.packet[IP].id)] = [(packet.num, packet.packet[IP].flags,
+                                                                    packet.packet[IP].frag)]
 
+                share.list_packet.append(packet)
+                if (share.flag_search == False):
+                    l = packet.packet_to_info()
+                    l.append(packet.getColor())
+                    l.append(num)
+                    self.AddPacket.emit(l)
+                share.list_tmp.append(packet.packet_to_info())
+                num += 1
+                if ((share.flag_select == False and share.flag_search == False)
+                        or (share.flag_select == True and share.flag_cancel == True
+                            and share.flag_search == False)):
+                    # make the scroll bar update
+                    self.Scroll.emit("True")
+            else:
+                pass
     def stop(self):
         self.isRunning = False
         self.quit()
@@ -1104,8 +1106,8 @@ class Ui_MainWindow(object):
         self.tableWidget.setRowCount(0)
         
         keyword = self.searchbar.text()
-        if (keyword!=""):
-            share.flag_search = True
+
+        share.flag_search = True
         after_search_index = 0
         for i in range(len(share.list_tmp)):
             try:
