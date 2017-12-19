@@ -210,25 +210,27 @@ def InfiniteProcess(flag_dict, pkt_lst):
     while (flag_dict['close'] == False):
         sleep(0.1)
         if (flag_dict['start'] == True and flag_dict['error'] == False):
-            sleep(0.1)
             f = InputToFilter(flag_dict)
-            if (f == ""):
-                a = sniff(
-                    iface=flag_dict['iface'],
-                    store=0,
-                    pkt_lst=pkt_lst,
-                    flag_dict=flag_dict,
-                    stopperTimeout=0.2,
-                )
-            else:
-                a = sniff(
-                    iface=flag_dict['iface'],
-                    store=0,
-                    filter=f,
-                    pkt_lst=pkt_lst,
-                    flag_dict=flag_dict,
-                    stopperTimeout=0.2,
-                )
+            try:
+                if (f == ""):
+                    a = sniff(
+                        iface=flag_dict['iface'],
+                        store=0,
+                        pkt_lst=pkt_lst,
+                        flag_dict=flag_dict,
+                        stopperTimeout=0.2,
+                    )
+                else:
+                    a = sniff(
+                        iface=flag_dict['iface'],
+                        store=0,
+                        filter=f,
+                        pkt_lst=pkt_lst,
+                        flag_dict=flag_dict,
+                        stopperTimeout=0.2,
+                    )
+            except NameError:
+                flag_dict['error'] = True
 
 
 """The following classes are customized class derived from QtWidgets"""
@@ -660,6 +662,7 @@ class Ui_MainWindow(object):
         self.searchbar.setFont(QFont('Consolas', 10, QFont.Light))
         self.searchbar.setFrame(False)
         self.searchbar.setFixedHeight(30)
+        self.searchbar.setClearButtonEnabled(True)
         # searchbutton with icon
         self.searchbutton = SearchButton(self.centralwidget)
         self.searchbutton.setIcon(QIcon(os.path.dirname(
@@ -889,7 +892,17 @@ class Ui_MainWindow(object):
         """
         global flag_dict
         flag_dict['start'] = not flag_dict['start']
+        
         if (flag_dict['start']):
+            sleep(0.3)
+            if (flag_dict['error']==True):
+                #filter error
+                flag_dict['start']=False
+                flag_dict['error']=False
+                buttonReply = QtWidgets.QMessageBox.critical(
+                    self.centralwidget, 'Filter Error', "Your Input is not valid.\nPlease try another one.", 
+                    QtWidgets.QMessageBox.Ok, QtWidgets.QMessageBox.Ok)
+                return
             filterstr = InputToFilter(flag_dict) if (
                 InputToFilter(flag_dict) != "") else "ALL"
             self.button.setText('Stop')
@@ -1089,8 +1102,10 @@ class Ui_MainWindow(object):
         even in the period of seaching
         """
         self.tableWidget.setRowCount(0)
-        share.flag_search = True
+        
         keyword = self.searchbar.text()
+        if (keyword!=""):
+            share.flag_search = True
         after_search_index = 0
         for i in range(len(share.list_tmp)):
             try:
@@ -1211,9 +1226,9 @@ class Ui_MainWindow(object):
             speed_up = str(round(s_up / 1024 ** 2, 1)) + "MBps"
         if s_down // 1024 < 1:
             speed_down = str(round(s_down, 1)) + "Bps"
-        elif s_up // 1024 ** 2 < 1:
+        elif s_down // 1024 ** 2 < 1:
             speed_down = str(round(s_down / 1024, 1)) + 'KBps'
-        elif s_up // 1024 ** 3 < 1:
+        elif s_down // 1024 ** 3 < 1:
             speed_down = str(round(s_down / 1024 ** 2, 1)) + "MBps"
         title = '  ↓ %s  ↑ %s' % (speed_down.rjust(10), speed_up.rjust(10))
         self.speedlabel.setText(title)
@@ -1237,6 +1252,7 @@ class Ui_MainWindow(object):
             l: [num,time,src,dst,len,protocol,(background-color(r,g,b),font-color(r,g,b)]
         """
         num = l[-1]
+        
         self.tableWidget.insertRow(num)
         for i in range(6):
             item = QTableWidgetItem(l[i])
@@ -1248,7 +1264,6 @@ class Ui_MainWindow(object):
                 item.setData(Qt.UserRole, QtGui.QColor(
                     (l[-2][0][0] - 30) % 256, (l[-2][0][1] - 30) % 256, (l[-2][0][2] - 30) % 256))
             self.tableWidget.setItem(num, i, item)
-
     def ShowIpResult(self):
         """Show Ip reassembly result in tab2.
         
