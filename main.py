@@ -24,7 +24,7 @@ import re
 """Import from other files in this directory"""
 from var import VAR
 from packet_r import Packet_r
-from httpconverter import HttpConverter
+from httpconverter import HttpConverter,HttpHeader
 # redirect all output to files in order to keep the console clean
 #filename  = open("outputfile.txt",'w')
 #sys.stdout = filename
@@ -58,7 +58,6 @@ with open(os.devnull, 'w') as errf:
     """
     with redirect_stderr(errf):
         from scapy.all import *
-
 #Use pcap to capture in Windows
 conf.use_pcap = True
 
@@ -298,7 +297,8 @@ class Table(QtWidgets.QTableWidget):
         if (share.last_row != ''):
             last_row = share.last_row
             if (share.flag_search):
-                last_low = share.dict_search[last_row]
+                
+                last_row = share.dict_search[last_row]
             color_list = share.list_packet[last_row].getColor()
             for i in range(6):
                 self.item(share.last_row, i).setBackground(QtGui.QColor(
@@ -989,6 +989,8 @@ class Ui_MainWindow(object):
             self.val = val
         except UnboundLocalError:
             return
+            
+
 
         self.final_tcp_seq = ""
         self.final_ip_seq = ""
@@ -1016,6 +1018,18 @@ class Ui_MainWindow(object):
                     "%-10s%s\n" % ((key[0].upper() + key[1:] + ":"), i[1][key])
             self.CreateNewTab(self.tabWidget, i[0], s)
 
+        #whether http request header or not
+        try:
+            info,header=HttpHeader(share.list_packet[val].packet_to_load_utf8()).getheader()
+            s = ""
+            s = s + "No. " + str(val) + "\n"+info+"\n"
+            for key in header:
+                s = s + \
+                    "%-20s%s\n" % ((key + ":"), header[key])
+            self.CreateNewTab(self.tabWidget, "HTTP Request Header",s)
+        except:
+            pass
+
         try:
             s = ""
             s = s + "No. " + str(val) + "\n" + i[0] + "\n"
@@ -1026,6 +1040,7 @@ class Ui_MainWindow(object):
         except:  # no load or decode error
             pass
 
+        
         self.CreateNewTab(self.tabWidget, "Whole in hex",
                           share.list_packet[val].hexdump())
 
@@ -1321,12 +1336,16 @@ class Ui_MainWindow(object):
             for i in self.final_tcp_seq:
                 QtCore.QCoreApplication.processEvents()
                 content += share.list_packet[i[1][0]].load
+            for i in self.final_tcp_seq:
+                info=share.list_packet[i[1][0]].load.split(b'\r\n')[0].decode('utf8')
+                break
             response = HttpConverter(content).getcontent()
 
             h = ""
             for i in response.headers:
                 QtCore.QCoreApplication.processEvents()
-                h += str(i) + " : " + str(response.headers[i]) + "\n"
+                
+                h +=  "%-20s%s\n" % ((str(i)+ ":"), str(response.headers[i]))
             s = "No. " + \
                 str(self.val) + \
                 " can be TCP assembled by following %d packet" % len(
@@ -1346,13 +1365,14 @@ class Ui_MainWindow(object):
                 content = str(content)[2:-1]
 
             self.http_content = response.data
-            h = "HTTP Header in No. " + str(first_index) + '\n' + h
+            h = "HTTP Header in No. " + str(first_index) + '\n' +info+'\n'+ h
 
             self.CreateNewTab(self.tabWidget_2, "HTTP HEADER", h)
 
             self.CreateNewTab(self.tabWidget_2, "HTTP CONTENT",
                               s + content)
         except:
+            
             self.file_content = b""
             for i in self.final_tcp_seq:
                 QtCore.QCoreApplication.processEvents()

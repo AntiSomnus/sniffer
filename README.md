@@ -53,13 +53,17 @@ After that processing, you are welcome to click the `Reassembly` button below on
 Only tested in FTP Transmission, HTML reassembly and ICMP(ping), and the file size can be up to 15MB (might take certain time processing to GUI)
 New feature is added to show the whole size number after reassembly to have a quick peak of the whole process.
 
-#### sample of TCP/IP/ file saving Result:
+#### sample of TCP/IP file saving Result:
 
 ![Sample](/sample_pic/sample3.png "Sample")
 
 #### sample of HTTP(HTML) parsing Result:
 
 ![Sample](/sample_pic/sample4.png "Sample")
+
+#####New feature is added to show HTTP Request headers.
+
+![Sample](/sample_pic/sample5.png "Sample")
 
 ### Search bar makes things easier
 
