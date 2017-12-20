@@ -55,7 +55,7 @@ New feature is added to show the whole size number after reassembly to have a qu
 
 #### sample of TCP/IP file saving Result:
 
-![Sample](/sample_pic/sample3.png "Sample")
+![Sample](/sample_pic/reassemble_sample.gif "Sample")
 
 #### sample of HTTP(HTML) parsing Result:
 
