@@ -59,11 +59,7 @@ New feature is added to show the whole size number after reassembly to have a qu
 
 #### sample of HTTP(HTML) parsing Result:
 
-![Sample](/sample_pic/sample4.png "Sample")
-
-##### New feature is added to show HTTP Request headers.
-
-![Sample](/sample_pic/sample5.png "Sample")
+![Sample](/sample_pic/html_sample.gif "HTML Sample")
 
 ### Search bar makes things easier
 
