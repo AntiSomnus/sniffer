@@ -829,9 +829,15 @@ class Ui_MainWindow(object):
             QKeySequence("Ctrl+C"), self.centralwidget)
         self.copypacket.activated.connect(self.tableWidget.CopyReadablePackets)
         #save packets
-        self.copypacket = QShortcut(
+        self.savepacket = QShortcut(
             QKeySequence("Ctrl+S"), self.centralwidget)
-        self.copypacket.activated.connect(self.tableWidget.SaveReadablePackets)
+        self.savepacket.activated.connect(self.tableWidget.SaveReadablePackets)
+        #quick start/resume
+        self.quickstart = QShortcut(
+            QKeySequence("Alt+Q"), self.centralwidget)
+        self.quickstart.activated.connect(self.EvtStart)
+
+
         self.title = 'Sniffer V2.0'
         self.MainWindow.setWindowIcon(QIcon(os.path.dirname(
             os.path.realpath(__file__)) + "\\icons\\icon.png"))
