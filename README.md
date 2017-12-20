@@ -40,9 +40,12 @@ Multiple features in this project.
 
 Choose the filter anytime you like and then click the start button twice to continue sniffing.(have to stop and start to take effect)
 
-### Save selected packet(s) information to files.
+### Save selected packet(s) information to files, and even copy to clipboard.
 
-Select one packet, or use Ctrl+LeftClick to choose multiple packets. You can save them into a txt file with readable format.
+Select one packet, or multiple packets. After using right clicks, you can save them into a txt file with readable format, or even copy
+them into your clipboard(short-cut keys Ctrl-S,Ctrl-C). 
+
+![Sample](/sample_pic/save_sample.gif "Sample")
 
 ### TCP/IP/HTTP reassembly and save them to files.
 
@@ -82,8 +85,8 @@ Every packet is sorted by the default color theme of wireshark. Default On. Usin
 ADD Mouse entering and leaving event for each row makes the UI more colorful and better.
 
 
-## Sample
+## Overall quick look
 ### Sniffer v2.0: Colorful and powerful
 
-![Sample](/sample_pic/sample1.png "Sample")
+![Sample](/sample_pic/overall_sample.gif "Sample")
 

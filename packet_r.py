@@ -246,6 +246,9 @@ class Packet_r():
                 if(self.packet[IP].proto in (2, 88, 89, 112)):
                     ### igmp,eigrp,ospf,vrrp
                     return ((255, 243, 214), (18, 39, 46))
+                elif(self.packet[IP].proto==1):
+                    ### ICMP fragments
+                    return ((252, 224, 255), (18, 39, 46))
                 else:
                     return ((255, 255, 255), (18, 39, 46))
             elif (self.packet.haslayer(IPv6)):

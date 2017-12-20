@@ -1020,13 +1020,14 @@ class Ui_MainWindow(object):
 
         #whether http request header or not
         try:
-            info,header=HttpHeader(share.list_packet[val].packet_to_load_utf8()).getheader()
-            s = ""
-            s = s + "No. " + str(val) + "\n"+info+"\n"
-            for key in header:
-                s = s + \
-                    "%-20s%s\n" % ((key + ":"), header[key])
-            self.CreateNewTab(self.tabWidget, "HTTP Request Header",s)
+            if (share.list_packet[val].packet[TCP].sport==80 or share.list_packet[val].packet[TCP].dport==80):
+                info,header=HttpHeader(share.list_packet[val].packet_to_load_utf8()).getheader()
+                s = ""
+                s = s + "No. " + str(val) + "\n"+info+"\n"
+                for key in header:
+                    s = s + \
+                        "%-20s%s\n" % ((key + ":"), header[key])
+                self.CreateNewTab(self.tabWidget, "HTTP Request Header",s)
         except:
             pass
 
