@@ -10,10 +10,10 @@ Just download them all and run main.py
 
 - Python 3.6
 - Modified [scapy3k](https://github.com/phaethon/scapy) Used for multiprocessing purposes. Just use directly from here. 
-- [ansi2html] (https://github.com/ralphbean/ansi2html)  Used to parse ANSI ESCAPE Sequence to html css.
-- [psutil] (https://github.com/giampaolo/psutil)	Used to detect packet received amount in system level to calculate network speed. 
-- [urllib3] (https://github.com/shazow/urllib3)  Used to parse HTTP Response
-- [PyQt5] (https://riverbankcomputing.com/software/pyqt/download5)
+- [ansi2html](https://github.com/ralphbean/ansi2html)  Used to parse ANSI ESCAPE Sequence to html css.
+- [psutil](https://github.com/giampaolo/psutil)	Used to detect packet received amount in system level to calculate network speed. 
+- [urllib3](https://github.com/shazow/urllib3)  Used to parse HTTP Response
+- [PyQt5](https://riverbankcomputing.com/software/pyqt/download5) GUI
 - Need to install [Win10Pcap(Recommended)](http://www.win10pcap.org/), Npcap(might have slight issue of missing certain packets).
 Only test and modify the lib concerning Windows users.
 
@@ -79,7 +79,19 @@ ADD Mouse entering and leaving event for each row makes the UI more colorful and
 
 
 ## Overall quick look
-- Sniffer v2.0: Colorful and powerful
+- [Sniffer](#sniffer)
+    - [Getting Started](#getting-started)
+        - [Prerequisites](#prerequisites)
+        - [Usage](#usage)
+    - [Feature](#feature)
+        - [Filter on Network interfaces, Protocol, Src, Dst, Sport and Dport.](#filter-on-network-interfaces-protocol-src-dst-sport-and-dport)
+        - [Save selected packet(s) information to files, and even copy to clipboard.](#save-selected-packets-information-to-files-and-even-copy-to-clipboard)
+        - [TCP/IP/HTTP reassembly and save them to files.](#tcpiphttp-reassembly-and-save-them-to-files)
+        - [Search bar makes things easier](#search-bar-makes-things-easier)
+        - [OC Mode](#oc-mode)
+        - [Network Speed](#network-speed)
+        - [Color Theme like WireShark](#color-theme-like-wireshark)
+    - [Overall quick look](#overall-quick-look)
 
 ![Sample](/sample_pic/overall_sample.gif "Sample")
 
