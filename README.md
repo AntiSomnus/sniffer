@@ -1,7 +1,23 @@
 # Sniffer
 
 Simple sniffer using scapy and PyQt5.
+<!-- TOC -->
 
+
+- [Getting Started](#getting-started)
+    - [Prerequisites](#prerequisites)
+- [Usage](#usage)
+- [Feature](#feature)
+    - [Filter on Network interfaces, Protocol, Src, Dst, Sport and Dport.](#filter-on-network-interfaces-protocol-src-dst-sport-and-dport)
+    - [Save selected packet(s) information to files, and even copy to clipboard.](#save-selected-packets-information-to-files-and-even-copy-to-clipboard)
+    - [TCP/IP/HTTP reassembly and save them to files.](#tcpiphttp-reassembly-and-save-them-to-files)
+    - [Search bar makes things easier](#search-bar-makes-things-easier)
+    - [OC Mode](#oc-mode)
+    - [Network Speed](#network-speed)
+    - [Color Theme like WireShark](#color-theme-like-wireshark)
+- [Summary](#summary)
+
+<!-- /TOC -->
 ## Getting Started
 
 Just download them all and run main.py
@@ -18,7 +34,7 @@ Just download them all and run main.py
 Only test and modify the lib concerning Windows users.
 
 
-### Usage
+## Usage
 ```
 pip install -r requirements.txt
 
@@ -78,20 +94,8 @@ Every packet is sorted by the default color theme of wireshark. Default On. Usin
 ADD Mouse entering and leaving event for each row makes the UI more colorful and better.
 
 
-## Overall quick look
-- [Sniffer](#sniffer)
-    - [Getting Started](#getting-started)
-        - [Prerequisites](#prerequisites)
-        - [Usage](#usage)
-    - [Feature](#feature)
-        - [Filter on Network interfaces, Protocol, Src, Dst, Sport and Dport.](#filter-on-network-interfaces-protocol-src-dst-sport-and-dport)
-        - [Save selected packet(s) information to files, and even copy to clipboard.](#save-selected-packets-information-to-files-and-even-copy-to-clipboard)
-        - [TCP/IP/HTTP reassembly and save them to files.](#tcpiphttp-reassembly-and-save-them-to-files)
-        - [Search bar makes things easier](#search-bar-makes-things-easier)
-        - [OC Mode](#oc-mode)
-        - [Network Speed](#network-speed)
-        - [Color Theme like WireShark](#color-theme-like-wireshark)
-    - [Overall quick look](#overall-quick-look)
+## Summary
+
 
 ![Sample](/sample_pic/overall_sample.gif "Sample")
 
