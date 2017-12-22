@@ -28,10 +28,21 @@ from httpconverter import HttpConverter,HttpHeader
 # redirect all output to files in order to keep the console clean
 #filename  = open("outputfile.txt",'w')
 #sys.stdout = filename
+"""Used to make long string wrap to newline"""
+import textwrap
+
 """The library to convert ANSI escape code to html css"""
 from ansi2html import Ansi2HTMLConverter
 
 from contextlib import contextmanager
+
+"""Optional usage of pyshark to give brief info"""
+try:
+    import pyshark
+    flag_pyshark=True
+except ImportError:
+    flag_pyshark=False
+
 
 
 @contextmanager
@@ -446,6 +457,7 @@ class ProcessingThread(QThread):
         The dedicated thread to process raw packet, which is to process 
         each raw packet and make it display in the QTableWidget.
         """
+        
         num = 0
         global pkt_lst
         while self.isRunning:
@@ -942,8 +954,34 @@ class Ui_MainWindow(object):
         else:
             self.button.setText('Start')
             self.MainWindow.setWindowTitle(self.title)
+            t=Thread(target=self.TsharkInfo)
+            t.start()
+    
+    def TsharkInfo(self):
+        """If pyshark is installed, displaying info on mouse event.
 
+        """
+        
+        if (flag_pyshark):
+            capture = pyshark.InMemCapture(only_summaries=True)
+            l=[]
+
+            for i in share.list_packet:
+                l.append(bytes(i.packet))
+            capture.feed_packets(l)
+            share.list_TsharkInfo=[]
+            for i in capture:
+                share.list_TsharkInfo.append(i.info)
+            
     def EvtMouseOnRow(self, row, column):
+        """Mouse entering event for the packet
+        
+        Show color change effect and Pyshark Info(if install pyshark).
+        Args:
+            row: row index of the packet with cursor
+            column: column index of the packet with cursor
+        """
+        
         if (self.colorModeStatus == False):
             share.last_row = ''
         else:
@@ -955,7 +993,7 @@ class Ui_MainWindow(object):
                 for i in range(6):
                     self.tableWidget.item(share.last_row, i).setBackground(QtGui.QColor(
                         color_list[0][0], color_list[0][1], color_list[0][2]))
-
+                
             share.last_row = row
             if (share.flag_search):
                 row = share.dict_search[row]
@@ -963,10 +1001,23 @@ class Ui_MainWindow(object):
             for i in range(6):
                 self.tableWidget.item(share.last_row, i).setBackground(QtGui.QColor(
                     (color_list[0][0] - 10) % 256, (color_list[0][1] - 10) % 256, (color_list[0][2] - 10) % 256))
-
+            if (flag_dict['start']==False):
+                pos=QCursor().pos()
+                if (flag_pyshark):
+                    """If having pyshark, turn on this feature.
+                    
+                    Mouse Entering event for every packet when stopped.
+                    """
+                    try:
+                        tooltipstr=share.list_TsharkInfo[row]
+                        tooltipstr=tooltipstr.replace('\\xe2\\x86\\x92','→')
+                        QtWidgets.QToolTip.showText(pos, textwrap.fill(tooltipstr, 20))
+                    except:
+                        QtWidgets.QToolTip.showText(pos,"Processing")
+                    QtWidgets.QToolTip.setFont(QFont('Consolas', 10, QFont.Light))
     def EvtSelect(self):
-        """Event when select a row(packet)
-        .
+        """Event when select a row(packet).
+
         The event for selecting a row(packet), which is to show detailed and 
         reassembly information about the chosen packet.
 

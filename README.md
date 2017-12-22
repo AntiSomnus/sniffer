@@ -3,19 +3,21 @@
 Simple sniffer using scapy and PyQt5.
 <!-- TOC -->
 
-
-- [Getting Started](#getting-started)
-    - [Prerequisites](#prerequisites)
-- [Usage](#usage)
-- [Feature](#feature)
-    - [Filter on Network interfaces, Protocol, Src, Dst, Sport and Dport.](#filter-on-network-interfaces-protocol-src-dst-sport-and-dport)
-    - [Save selected packet(s) information to files, and even copy to clipboard.](#save-selected-packets-information-to-files-and-even-copy-to-clipboard)
-    - [TCP/IP/HTTP reassembly and save them to files.](#tcpiphttp-reassembly-and-save-them-to-files)
-    - [Search bar makes things easier](#search-bar-makes-things-easier)
-    - [OC Mode](#oc-mode)
-    - [Network Speed](#network-speed)
-    - [Color Theme like WireShark](#color-theme-like-wireshark)
-- [Summary](#summary)
+- [Sniffer](#sniffer)
+    - [Getting Started](#getting-started)
+        - [Prerequisites](#prerequisites)
+        - [Optional](#optional)
+    - [Usage](#usage)
+    - [Feature](#feature)
+        - [Filter on Network interfaces, Protocol, Src, Dst, Sport and Dport.](#filter-on-network-interfaces-protocol-src-dst-sport-and-dport)
+        - [Save selected packet(s) information to files, and even copy to clipboard.](#save-selected-packets-information-to-files-and-even-copy-to-clipboard)
+        - [TCP/IP/HTTP reassembly and save them to files.](#tcpiphttp-reassembly-and-save-them-to-files)
+        - [Search bar makes things easier](#search-bar-makes-things-easier)
+        - [OC Mode](#oc-mode)
+        - [Network Speed](#network-speed)
+        - [Color Theme like WireShark](#color-theme-like-wireshark)
+        - [(Optional) Brief efficient information when mouse passes.](#optional-brief-efficient-information-when-mouse-passes)
+    - [Summary](#summary)
 
 <!-- /TOC -->
 ## Getting Started
@@ -33,12 +35,21 @@ Just download them all and run main.py
 - Need to install [Win10Pcap(Recommended)](http://www.win10pcap.org/), Npcap(might have slight issue of missing certain packets).
 Only test and modify the lib concerning Windows users.
 
+### Optional
+-  [pyshark](https://github.com/KimiNewt/pyshark) Used to parse brief infomation from raw packets.
+
+   - Tips:
+ 
+      However, the latest version works not well on Win10, so version 0.3.6.2 is only used and recommended if the the brief and efficient info for packet is what you need.
 
 ## Usage
 ```
 pip install -r requirements.txt
-
 python main.py
+
+#Optional lib `pyshark` for parsing brief info from packet.
+#pyshark version 0.3.6.2 is the only one that works an.
+pip install pyshark==0.3.6.2
 ```
 
 ## Feature
@@ -93,6 +104,12 @@ The ultimate style of Network Speed uses the API of psutil which is extremely ac
 Every packet is sorted by the default color theme of wireshark. Default On. Using "Ctrl+F" to turn off/on.
 ADD Mouse entering and leaving event for each row makes the UI more colorful and better.
 
+### (Optional) Brief efficient information when mouse passes.
+
+Thanks to the API of `pyshark`, the real information that contains a lot of useful details can be feeded whenever your mouse passes on. Remember it's only activated when `pyshark(version 0.3.6.2)` is installed and the current mode is `STOP`.
+
+
+![Sample](/sample_pic/pyshark_sample.gif "HTML Sample")
 
 ## Summary
 
