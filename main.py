@@ -988,7 +988,10 @@ class Ui_MainWindow(object):
             if (share.last_row != ''):
                 last_row = share.last_row
                 if (share.flag_search):
-                    last_row = share.dict_search[share.last_row]
+                    try:
+                        last_row = share.dict_search[share.last_row]
+                    except KeyError:
+                        return
                 color_list = share.list_packet[last_row].getColor()
                 for i in range(6):
                     self.tableWidget.item(share.last_row, i).setBackground(QtGui.QColor(
