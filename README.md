@@ -1,6 +1,9 @@
 # Sniffer
 
-Simple sniffer using scapy and PyQt5.
+Simple sniffer using Scapy and PyQt5.
+
+![Sample](/sample_pic/overall_sample.gif "Sample")
+
 <!-- TOC -->
 
 - [Sniffer](#sniffer)
@@ -17,7 +20,7 @@ Simple sniffer using scapy and PyQt5.
         - [Network Speed](#network-speed)
         - [Color Theme like WireShark](#color-theme-like-wireshark)
         - [(Optional) Brief efficient information when mouse passes.](#optional-brief-efficient-information-when-mouse-passes)
-    - [Summary](#summary)
+    - [To Do](#to-do)
 
 <!-- /TOC -->
 ## Getting Started
@@ -36,7 +39,7 @@ Just download them all and run main.py
 Only test and modify the lib concerning Windows users.
 
 ### Optional
--  [pyshark](https://github.com/KimiNewt/pyshark) Used to parse brief infomation from raw packets.
+-  [pyshark](https://github.com/KimiNewt/pyshark) Used to parse brief information from raw packets.
 
    - Tips:
  
@@ -109,10 +112,11 @@ ADD Mouse entering and leaving event for each row makes the UI more colorful and
 Thanks to the API of `pyshark`, the real information that contains a lot of useful details can be feeded whenever your mouse passes on. Remember it's only activated when `pyshark(version 0.3.6.2)` is installed and the current mode is `STOP`.
 
 
-![Sample](/sample_pic/pyshark_sample.gif "HTML Sample")
+![Sample](/sample_pic/pyshark_sample.gif "Sample")
 
-## Summary
+## To Do
+-  Find a way less CPU consuming that can capture almost all packets instead of a dedicated process on it.
+-  Using `WinDump` in `scapy` and `LiveRingCapture` in `pyshark` should to improve the performance.
+-  Make it compatible in linux as well.
 
-
-![Sample](/sample_pic/overall_sample.gif "Sample")
 
