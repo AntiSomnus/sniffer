@@ -41,6 +41,8 @@ class VAR():
         self.dict_search={}  # {after search:before search}
         self.dict_mac2name={} #mac:name of mac
         self.dict_expect_tcp_seq={} #(src,dst,sport,dport):(expect seq,syn flag)
+        
+        self.list_TsharkInfo=[] #tshark info
 
         self.last_row=''  #last mouse row
         for i in psutil.net_if_addrs():

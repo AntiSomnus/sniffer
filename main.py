@@ -1,3 +1,6 @@
+#regex for ipv4 and ipv6 in the same time
+regex="((^\s*((([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]))\s*$)|(^\s*((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))(%.+)?\s*$))"
+
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtGui import QIcon, QFont, QCursor, QPixmap, QColor, QKeySequence, QPalette
 from PyQt5.QtCore import pyqtSlot, QThread, Qt, pyqtSignal, QPoint
@@ -21,14 +24,25 @@ import re
 """Import from other files in this directory"""
 from var import VAR
 from packet_r import Packet_r
-from httpconverter import HttpConverter
+from httpconverter import HttpConverter,HttpHeader
 # redirect all output to files in order to keep the console clean
 #filename  = open("outputfile.txt",'w')
 #sys.stdout = filename
+"""Used to make long string wrap to newline"""
+import textwrap
+
 """The library to convert ANSI escape code to html css"""
 from ansi2html import Ansi2HTMLConverter
 
 from contextlib import contextmanager
+
+"""Optional usage of pyshark to give brief info"""
+try:
+    import pyshark
+    flag_pyshark=True
+except ImportError:
+    flag_pyshark=False
+
 
 
 @contextmanager
@@ -55,7 +69,6 @@ with open(os.devnull, 'w') as errf:
     """
     with redirect_stderr(errf):
         from scapy.all import *
-
 #Use pcap to capture in Windows
 conf.use_pcap = True
 
@@ -64,6 +77,7 @@ conf.use_pcap = True
 import psutil
 
 """The following functions are used to handle tcp reassembly"""
+
 
 def packet_tcp_seq(seq):
     """Return the related fragments of given `seq`.
@@ -151,6 +165,7 @@ def packet_tcp_seq_backward(seq_keys, position, p):
 
 """The following function is used to give wireshark-type string"""
 
+
 def packet_align(s):
     """Convert hex string to Wireshark-type raw hex string.
     
@@ -170,6 +185,7 @@ def packet_align(s):
 
 
 """The following functions is used to parse filter when dict is given"""
+
 
 def InputToFilter(flag_dict):
     """Return the filter string of input.
@@ -199,6 +215,7 @@ def InputToFilter(flag_dict):
 
 """The following function is an additional process to sniff continously"""
 
+
 def InfiniteProcess(flag_dict, pkt_lst):
     """The infinite process of sniffing.
 
@@ -210,28 +227,31 @@ def InfiniteProcess(flag_dict, pkt_lst):
     while (flag_dict['close'] == False):
         sleep(0.1)
         if (flag_dict['start'] == True and flag_dict['error'] == False):
-            sleep(0.1)
             f = InputToFilter(flag_dict)
-            if (f == ""):
-                a = sniff(
-                    iface=flag_dict['iface'],
-                    store=0,
-                    pkt_lst=pkt_lst,
-                    flag_dict=flag_dict,
-                    stopperTimeout=0.2,
-                )
-            else:
-                a = sniff(
-                    iface=flag_dict['iface'],
-                    store=0,
-                    filter=f,
-                    pkt_lst=pkt_lst,
-                    flag_dict=flag_dict,
-                    stopperTimeout=0.2,
-                )
+            try:
+                if (f == ""):
+                    a = sniff(
+                        iface=flag_dict['iface'],
+                        store=0,
+                        pkt_lst=pkt_lst,
+                        flag_dict=flag_dict,
+                        stopperTimeout=0.2,
+                    )
+                else:
+                    a = sniff(
+                        iface=flag_dict['iface'],
+                        store=0,
+                        filter=f,
+                        pkt_lst=pkt_lst,
+                        flag_dict=flag_dict,
+                        stopperTimeout=0.2,
+                    )
+            except NameError:
+                flag_dict['error'] = True
 
 
 """The following classes are customized class derived from QtWidgets"""
+
 
 class SearchButton(QtWidgets.QPushButton):
     """
@@ -288,7 +308,8 @@ class Table(QtWidgets.QTableWidget):
         if (share.last_row != ''):
             last_row = share.last_row
             if (share.flag_search):
-                last_low = share.dict_search[last_row]
+                
+                last_row = share.dict_search[last_row]
             color_list = share.list_packet[last_row].getColor()
             for i in range(6):
                 self.item(share.last_row, i).setBackground(QtGui.QColor(
@@ -401,17 +422,20 @@ class ColorDelegate(QtWidgets.QStyledItemDelegate):
             index: default parameter
         """
         color = index.data(Qt.UserRole)
-        
-        if (color==QColor((18-30)%256,(39-30)%256,(46-30)%256)):
-            option.palette.setColor(QPalette.Highlight, QColor(50,39,46))
-            option.palette.setColor(QPalette.HighlightedText,QColor(247,135,135))
+
+        if (color == QColor((18 - 30) % 256, (39 - 30) % 256, (46 - 30) % 256)):
+            option.palette.setColor(QPalette.Highlight, QColor(50, 39, 46))
+            option.palette.setColor(
+                QPalette.HighlightedText, QColor(247, 135, 135))
         else:
             option.palette.setColor(QPalette.Highlight, color)
-            option.palette.setColor(QPalette.HighlightedText,QColor(18,39,46))
+            option.palette.setColor(
+                QPalette.HighlightedText, QColor(18, 39, 46))
         QStyledItemDelegate.paint(self, painter, option, index)
 
 
 """The following classes are customized class derived from QThread"""
+
 
 class ProcessingThread(QThread):
     """A class derived from QThread of processing raw packets.
@@ -433,75 +457,79 @@ class ProcessingThread(QThread):
         The dedicated thread to process raw packet, which is to process 
         each raw packet and make it display in the QTableWidget.
         """
+        
         num = 0
         global pkt_lst
         while self.isRunning:
-            try:
-                p = pkt_lst.get()
-
-            except:
-                continue
-            list_byte.append(p[0])
-            packet = Ether(p[0])
-            packet.time = p[1]
-            packet.num = num
-            packet = Packet_r(packet)
-
-            # possible preprocess for TCP reassembly
-            if packet.haslayer(TCP):
-                seq = packet.packet[TCP].seq
-                try:
-                    seqlen = len(packet.packet[Raw])
-                except:
-                    seqlen = 0
-                share.tcp_seq[seq] = (packet.num, seqlen)
-
-                try:
-                    fetch_dict = share.dict_expect_tcp_seq[(
-                        packet.src, packet.dst, packet.packet[TCP].sport, packet.packet[TCP].dport)]
-                    seq_expect = fetch_dict[0]
-                    last_syn = fetch_dict[1]
-                    if (seq != seq_expect and last_syn == False):
-                       packet.tcp_order = False
-                except KeyError:
-                    pass
-                binary_flags = bin(int(packet.packet[TCP].flags.split(' ')[0]))[
-                    2:].rjust(7, '0')
-                syn = binary_flags[-2]
-                if (syn == '1'):
-                    syn = True
-                else:
-                    syn = False
-                share.dict_expect_tcp_seq[(
-                    packet.src, packet.dst, packet.packet[TCP].sport, packet.packet[TCP].dport)] = (seq + seqlen, syn)
-
-            # possible preprocess for IP reassembly
-            if packet.haslayer(IP):
-                if packet.packet[IP].flags != 2:
-                    if (packet.packet[IP].src, packet.packet[IP].dst,
-                            packet.packet[IP].id) in share.ip_seq.keys():
-                        share.ip_seq[(packet.packet[IP].src, packet.packet[IP].dst,
-                                      packet.packet[IP].id)].append(
-                            (packet.num, packet.packet[IP].flags,
-                             packet.packet[IP].frag))
-                    else:
-                        share.ip_seq[(packet.packet[IP].src, packet.packet[IP].dst,
-                                      packet.packet[IP].id)] = [(packet.num, packet.packet[IP].flags,
-                                                                 packet.packet[IP].frag)]
-
-            share.list_packet.append(packet)
             if (share.flag_search == False):
-                l = packet.packet_to_info()
-                l.append(packet.getColor())
-                l.append(num)
-                self.AddPacket.emit(l)
-            share.list_tmp.append(packet.packet_to_info())
-            num += 1
-            if ((share.flag_select == False and share.flag_search == False)
-                    or (share.flag_select == True and share.flag_cancel == True
-                        and share.flag_search == False)):
-                # make the scroll bar update
-                self.Scroll.emit("True")
+                try:
+                    p = pkt_lst.get()
+
+                except:
+                    continue
+                list_byte.append(p[0])
+                packet = Ether(p[0])
+                packet.time = p[1]
+                packet.num = num
+                packet = Packet_r(packet)
+
+                # possible preprocess for TCP reassembly
+                if packet.haslayer(TCP):
+                    seq = packet.packet[TCP].seq
+                    try:
+                        seqlen = len(packet.packet[Raw])
+                    except:
+                        seqlen = 0
+                    share.tcp_seq[seq] = (packet.num, seqlen)
+
+                    try:
+                        fetch_dict = share.dict_expect_tcp_seq[(
+                            packet.src, packet.dst, packet.packet[TCP].sport, packet.packet[TCP].dport)]
+                        seq_expect = fetch_dict[0]
+                        last_syn = fetch_dict[1]
+                        if (seq != seq_expect and last_syn == False):
+                            packet.tcp_order = False
+                    except KeyError:
+                        pass
+                    binary_flags = bin(int(packet.packet[TCP].flags.split(' ')[0]))[
+                        2:].rjust(7, '0')
+                    syn = binary_flags[-2]
+                    if (syn == '1'):
+                        syn = True
+                    else:
+                        syn = False
+                    share.dict_expect_tcp_seq[(
+                        packet.src, packet.dst, packet.packet[TCP].sport, packet.packet[TCP].dport)] = (seq + seqlen, syn)
+
+                # possible preprocess for IP reassembly
+                if packet.haslayer(IP):
+                    if packet.packet[IP].flags != 2:
+                        if (packet.packet[IP].src, packet.packet[IP].dst,
+                                packet.packet[IP].id) in share.ip_seq.keys():
+                            share.ip_seq[(packet.packet[IP].src, packet.packet[IP].dst,
+                                          packet.packet[IP].id)].append(
+                                (packet.num, packet.packet[IP].flags,
+                                 packet.packet[IP].frag))
+                        else:
+                            share.ip_seq[(packet.packet[IP].src, packet.packet[IP].dst,
+                                          packet.packet[IP].id)] = [(packet.num, packet.packet[IP].flags,
+                                                                     packet.packet[IP].frag)]
+
+                share.list_packet.append(packet)
+                if (share.flag_search == False):
+                    l = packet.packet_to_info()
+                    l.append(packet.getColor())
+                    l.append(num)
+                    self.AddPacket.emit(l)
+                share.list_tmp.append(packet.packet_to_info())
+                num += 1
+                if ((share.flag_select == False and share.flag_search == False)
+                        or (share.flag_select == True and share.flag_cancel == True
+                            and share.flag_search == False)):
+                    # make the scroll bar update
+                    self.Scroll.emit("True")
+            else:
+                pass
 
     def stop(self):
         self.isRunning = False
@@ -555,6 +583,7 @@ class NetworkspeedThread(QThread):
 
 
 """The following classe is the main GUI class"""
+
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -628,19 +657,23 @@ class Ui_MainWindow(object):
         self.src = QtWidgets.QLineEdit(self.centralwidget)
         self.src.setFont(QFont('Consolas', 10, QFont.Light))
         self.src.textChanged.connect(self.EvtTextSrc)
+        v = QtGui.QRegExpValidator(QtCore.QRegExp(regex))
+        self.src.setValidator(v)
         # sport LineEdit
         self.sport = QtWidgets.QLineEdit(self.centralwidget)
         self.sport.setFont(QFont('Consolas', 10, QFont.Light))
         self.sport.textChanged.connect(self.EvtTextSport)
+        self.sport.setValidator(QtGui.QIntValidator(0,65535))
         # dst LineEdit
         self.dst = QtWidgets.QLineEdit(self.centralwidget)
         self.dst.setFont(QFont('Consolas', 10, QFont.Light))
         self.dst.textChanged.connect(self.EvtTextDst)
+        self.dst.setValidator(v)
         # dport LineEdit
         self.dport = QtWidgets.QLineEdit(self.centralwidget)
         self.dport.setFont(QFont('Consolas', 10, QFont.Light))
         self.dport.textChanged.connect(self.EvtTextDport)
-
+        self.dport.setValidator(QtGui.QIntValidator(0,65535))
         '''2nd line layout'''
         self.gridLayout.addWidget(self.label_pro, 1, 0, 1, 1)
         self.gridLayout.addWidget(self.pro, 1, 1, 1, 1)
@@ -660,6 +693,7 @@ class Ui_MainWindow(object):
         self.searchbar.setFont(QFont('Consolas', 10, QFont.Light))
         self.searchbar.setFrame(False)
         self.searchbar.setFixedHeight(30)
+        self.searchbar.setClearButtonEnabled(True)
         # searchbutton with icon
         self.searchbutton = SearchButton(self.centralwidget)
         self.searchbutton.setIcon(QIcon(os.path.dirname(
@@ -807,9 +841,15 @@ class Ui_MainWindow(object):
             QKeySequence("Ctrl+C"), self.centralwidget)
         self.copypacket.activated.connect(self.tableWidget.CopyReadablePackets)
         #save packets
-        self.copypacket = QShortcut(
+        self.savepacket = QShortcut(
             QKeySequence("Ctrl+S"), self.centralwidget)
-        self.copypacket.activated.connect(self.tableWidget.SaveReadablePackets)
+        self.savepacket.activated.connect(self.tableWidget.SaveReadablePackets)
+        #quick start/resume
+        self.quickstart = QShortcut(
+            QKeySequence("Alt+Q"), self.centralwidget)
+        self.quickstart.activated.connect(self.EvtStart)
+
+
         self.title = 'Sniffer V2.0'
         self.MainWindow.setWindowIcon(QIcon(os.path.dirname(
             os.path.realpath(__file__)) + "\\icons\\icon.png"))
@@ -889,7 +929,17 @@ class Ui_MainWindow(object):
         """
         global flag_dict
         flag_dict['start'] = not flag_dict['start']
+
         if (flag_dict['start']):
+            sleep(0.3)
+            if (flag_dict['error'] == True):
+                #filter error
+                flag_dict['start'] = False
+                flag_dict['error'] = False
+                buttonReply = QtWidgets.QMessageBox.critical(
+                    self.centralwidget, 'Filter Error', "Your Input is not valid.\nPlease try another one.",
+                    QtWidgets.QMessageBox.Ok, QtWidgets.QMessageBox.Ok)
+                return
             filterstr = InputToFilter(flag_dict) if (
                 InputToFilter(flag_dict) != "") else "ALL"
             self.button.setText('Stop')
@@ -904,20 +954,49 @@ class Ui_MainWindow(object):
         else:
             self.button.setText('Start')
             self.MainWindow.setWindowTitle(self.title)
+            t=Thread(target=self.TsharkInfo)
+            t.start()
+    
+    def TsharkInfo(self):
+        """If pyshark is installed, displaying info on mouse event.
 
+        """
+        
+        if (flag_pyshark):
+            capture = pyshark.InMemCapture(only_summaries=True)
+            l=[]
+
+            for i in share.list_packet:
+                l.append(bytes(i.packet))
+            capture.feed_packets(l)
+            share.list_TsharkInfo=[]
+            for i in capture:
+                share.list_TsharkInfo.append(i.info)
+            
     def EvtMouseOnRow(self, row, column):
+        """Mouse entering event for the packet
+        
+        Show color change effect and Pyshark Info(if install pyshark).
+        Args:
+            row: row index of the packet with cursor
+            column: column index of the packet with cursor
+        """
+        
         if (self.colorModeStatus == False):
             share.last_row = ''
         else:
             if (share.last_row != ''):
                 last_row = share.last_row
                 if (share.flag_search):
-                    last_row = share.dict_search[share.last_row]
+                    try:
+                        last_row = share.dict_search[share.last_row]
+                    except KeyError:
+                        return
                 color_list = share.list_packet[last_row].getColor()
                 for i in range(6):
                     self.tableWidget.item(share.last_row, i).setBackground(QtGui.QColor(
                         color_list[0][0], color_list[0][1], color_list[0][2]))
-
+                
             share.last_row = row
             if (share.flag_search):
                 row = share.dict_search[row]
@@ -925,10 +1004,23 @@ class Ui_MainWindow(object):
             for i in range(6):
                 self.tableWidget.item(share.last_row, i).setBackground(QtGui.QColor(
                     (color_list[0][0] - 10) % 256, (color_list[0][1] - 10) % 256, (color_list[0][2] - 10) % 256))
-
+            if (flag_dict['start']==False):
+                pos=QCursor().pos()
+                if (flag_pyshark):
+                    """If having pyshark, turn on this feature.
+                    
+                    Mouse Entering event for every packet when stopped.
+                    """
+                    try:
+                        tooltipstr=share.list_TsharkInfo[row]
+                        tooltipstr=tooltipstr.replace('\\xe2\\x86\\x92','→')
+                        QtWidgets.QToolTip.showText(pos, textwrap.fill(tooltipstr, 20))
+                    except:
+                        QtWidgets.QToolTip.showText(pos,"Processing")
+                    QtWidgets.QToolTip.setFont(QFont('Consolas', 10, QFont.Light))
     def EvtSelect(self):
-        """Event when select a row(packet)
-        .
+        """Event when select a row(packet).
+
         The event for selecting a row(packet), which is to show detailed and 
         reassembly information about the chosen packet.
 
@@ -941,10 +1033,10 @@ class Ui_MainWindow(object):
             self.pbar.hide()
         except:
             pass
-        
+
         for i in self.tableWidget.selectedItems():
             val = i.row()
-        
+
         if (share.flag_search == True):
             try:
                 val = share.dict_search[val]
@@ -952,23 +1044,25 @@ class Ui_MainWindow(object):
                 return
         share.flag_select = True
         share.flag_cancel = False
-        
+
         try:
             self.val = val
         except UnboundLocalError:
             return
-        
+            
+
+
         self.final_tcp_seq = ""
         self.final_ip_seq = ""
         self.http_content = ""
         count = self.tabWidget.count()
-        
+
         for i in range(self.tabWidget.count()):
             self.tabWidget.removeTab(0)
-        
+
         for i in range(self.tabWidget_2.count()):
             self.tabWidget_2.removeTab(0)
-        
+
         try:
             layerlist = share.list_packet[val].packet_to_layerlist()
         except UnboundLocalError:
@@ -983,7 +1077,20 @@ class Ui_MainWindow(object):
                 s = s + \
                     "%-10s%s\n" % ((key[0].upper() + key[1:] + ":"), i[1][key])
             self.CreateNewTab(self.tabWidget, i[0], s)
-        
+
+        #whether http request header or not
+        try:
+            if (share.list_packet[val].packet[TCP].sport==80 or share.list_packet[val].packet[TCP].dport==80):
+                info,header=HttpHeader(share.list_packet[val].packet_to_load_utf8()).getheader()
+                s = ""
+                s = s + "No. " + str(val) + "\n"+info+"\n"
+                for key in header:
+                    s = s + \
+                        "%-20s%s\n" % ((key + ":"), header[key])
+                self.CreateNewTab(self.tabWidget, "HTTP Request Header",s)
+        except:
+            pass
+
         try:
             s = ""
             s = s + "No. " + str(val) + "\n" + i[0] + "\n"
@@ -993,6 +1100,7 @@ class Ui_MainWindow(object):
                               s + "Decoded by GB2312:\n" + share.list_packet[val].packet_to_load_gb())
         except:  # no load or decode error
             pass
+
         
         self.CreateNewTab(self.tabWidget, "Whole in hex",
                           share.list_packet[val].hexdump())
@@ -1089,8 +1197,10 @@ class Ui_MainWindow(object):
         even in the period of seaching
         """
         self.tableWidget.setRowCount(0)
-        share.flag_search = True
+
         keyword = self.searchbar.text()
+
+        share.flag_search = True
         after_search_index = 0
         for i in range(len(share.list_tmp)):
             try:
@@ -1192,7 +1302,7 @@ class Ui_MainWindow(object):
         Reverse the colorModeStatus flag every time triggered.
         """
         self.colorModeStatus = not self.colorModeStatus
-    
+
     def SetSpeedOnStatusBar(self, l):
         """Set speed label text on status bar.
         
@@ -1211,9 +1321,9 @@ class Ui_MainWindow(object):
             speed_up = str(round(s_up / 1024 ** 2, 1)) + "MBps"
         if s_down // 1024 < 1:
             speed_down = str(round(s_down, 1)) + "Bps"
-        elif s_up // 1024 ** 2 < 1:
+        elif s_down // 1024 ** 2 < 1:
             speed_down = str(round(s_down / 1024, 1)) + 'KBps'
-        elif s_up // 1024 ** 3 < 1:
+        elif s_down // 1024 ** 3 < 1:
             speed_down = str(round(s_down / 1024 ** 2, 1)) + "MBps"
         title = '  ↓ %s  ↑ %s' % (speed_down.rjust(10), speed_up.rjust(10))
         self.speedlabel.setText(title)
@@ -1237,6 +1347,7 @@ class Ui_MainWindow(object):
             l: [num,time,src,dst,len,protocol,(background-color(r,g,b),font-color(r,g,b)]
         """
         num = l[-1]
+
         self.tableWidget.insertRow(num)
         for i in range(6):
             item = QTableWidgetItem(l[i])
@@ -1286,12 +1397,16 @@ class Ui_MainWindow(object):
             for i in self.final_tcp_seq:
                 QtCore.QCoreApplication.processEvents()
                 content += share.list_packet[i[1][0]].load
+            for i in self.final_tcp_seq:
+                info=share.list_packet[i[1][0]].load.split(b'\r\n')[0].decode('utf8')
+                break
             response = HttpConverter(content).getcontent()
-            
+
             h = ""
             for i in response.headers:
                 QtCore.QCoreApplication.processEvents()
-                h += str(i) + " : " + str(response.headers[i]) + "\n"
+                
+                h +=  "%-20s%s\n" % ((str(i)+ ":"), str(response.headers[i]))
             s = "No. " + \
                 str(self.val) + \
                 " can be TCP assembled by following %d packet" % len(
@@ -1306,18 +1421,19 @@ class Ui_MainWindow(object):
             s = s[:-2] + "\n" + "After reassembly:" + "\n" + "\n"
             try:
                 content = response.data
-                content=content.decode('utf8')
+                content = content.decode('utf8')
             except:
-                content=str(content)[2:-1]
-            
+                content = str(content)[2:-1]
+
             self.http_content = response.data
-            h = "HTTP Header in No. " + str(first_index) + '\n' + h
+            h = "HTTP Header in No. " + str(first_index) + '\n' +info+'\n'+ h
 
             self.CreateNewTab(self.tabWidget_2, "HTTP HEADER", h)
-            
+
             self.CreateNewTab(self.tabWidget_2, "HTTP CONTENT",
-                              s+content)
+                              s + content)
         except:
+            
             self.file_content = b""
             for i in self.final_tcp_seq:
                 QtCore.QCoreApplication.processEvents()
@@ -1436,9 +1552,9 @@ if __name__ == "__main__":
     p.start()
     flag_dict["select"] = False
 
-    #To show icon correctly in taskbar 
+    #To show icon correctly in taskbar
     import ctypes
-    myappid = 'sniffer v2.0' # arbitrary string
+    myappid = 'sniffer v2.0'  # arbitrary string
     ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 
     w = QtWidgets.QMainWindow()
