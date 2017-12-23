@@ -23,7 +23,7 @@ from datetime import datetime
 import re
 """Import from other files in this directory"""
 from var import VAR
-from packet_r import Packet_r
+from packet_r import Packet_r,igmptypes,arpoptypes
 from httpconverter import HttpConverter,HttpHeader
 # redirect all output to files in order to keep the console clean
 #filename  = open("outputfile.txt",'w')
@@ -69,6 +69,7 @@ with open(os.devnull, 'w') as errf:
     """
     with redirect_stderr(errf):
         from scapy.all import *
+        import scapy.contrib.igmp
 #Use pcap to capture in Windows
 conf.use_pcap = True
 
@@ -81,13 +82,13 @@ import psutil
 
 def packet_tcp_seq(seq):
     """Return the related fragments of given `seq`.
-    
+
     When given the `seq`, processing `packet_tcp_seq_backward`
     and `packet_tcp_seq_forward` to find related fragments
     all over the storage.
     Args:
         seq: int, the seq number of a TCP packet
-    
+
     Returns:
     list like [(seq, (packet number, Raw len)),...]
     """
@@ -168,10 +169,10 @@ def packet_tcp_seq_backward(seq_keys, position, p):
 
 def packet_align(s):
     """Convert hex string to Wireshark-type raw hex string.
-    
+
     Args:
         s: hex string of a packet
-    
+
     Returns:
         string:Wireshark-type raw hex string
     """
@@ -189,11 +190,11 @@ def packet_align(s):
 
 def InputToFilter(flag_dict):
     """Return the filter string of input.
-    
+
     Return the filter string of input when the dict is given.
     Args:
         flag_dict: manager.dict, pass args between processes.
-    
+
     Returns:
         f:string of the filter satisfying BPF filter rules
     """
@@ -228,6 +229,12 @@ def InfiniteProcess(flag_dict, pkt_lst):
         sleep(0.1)
         if (flag_dict['start'] == True and flag_dict['error'] == False):
             f = InputToFilter(flag_dict)
+            while not pkt_lst.empty():
+                """Clear all remaining before each start.
+
+                """
+
+                pkt_lst.get()
             try:
                 if (f == ""):
                     a = sniff(
@@ -260,17 +267,17 @@ class SearchButton(QtWidgets.QPushButton):
 
     def enterEvent(self, event):
         """Refine mouse enter event of the search button.
-        
+
         If mouse enters, then it shows feedback to the user.
-        
+
         """
         self.setStyleSheet("border: 1px solid grey;background-color: white;")
 
     def leaveEvent(self, event):
         """Refine mouse leave event of the search button.
-        
+
         If mouse leaves, then it remains white background like search bar.
-        
+
         """
         self.setStyleSheet("border: none;background-color: white;")
 
@@ -282,17 +289,17 @@ class NewButton(QtWidgets.QPushButton):
 
     def enterEvent(self, event):
         """Refine mouse enter event of the button.
-        
+
         If mouse enters, then it shows feedback to the user.
-        
+
         """
         self.setStyleSheet("background-color:rgb(225, 225, 225);color:blue")
 
     def leaveEvent(self, event):
         """Refine mouse enter event of the button.
-        
+
         If mouse enters, then it remains background as background.
-        
+
         """
         self.setStyleSheet(
             "background-color: transparent;border-style: outset;border-width: 0px;color:blue")
@@ -300,7 +307,7 @@ class NewButton(QtWidgets.QPushButton):
 
 class Table(QtWidgets.QTableWidget):
     """A new table class derived from QTableWidget.
-    
+
     Modify contextMenuEvent to save selected packet(s)
     """
 
@@ -308,7 +315,7 @@ class Table(QtWidgets.QTableWidget):
         if (share.last_row != ''):
             last_row = share.last_row
             if (share.flag_search):
-                
+
                 last_row = share.dict_search[last_row]
             color_list = share.list_packet[last_row].getColor()
             for i in range(6):
@@ -318,9 +325,9 @@ class Table(QtWidgets.QTableWidget):
 
     def contextMenuEvent(self, event):
         """Refine contextMenu Event of the QtableWidget.
-        
+
         If right click occurs, pop up a menu for user to save.
-        
+
         """
         self.menu = QtWidgets.QMenu(self)
         if (len(self.selectedItems()) > 6):
@@ -333,7 +340,7 @@ class Table(QtWidgets.QTableWidget):
             copyAction = QtWidgets.QAction('Copy selected packet', self)
 
         saveAction.triggered.connect(self.SaveReadablePackets)
-        saveAction.triggered.connect(self.CopyReadablePackets)
+        copyAction.triggered.connect(self.CopyReadablePackets)
         self.menu.addAction(saveAction)
         self.menu.addAction(copyAction)
         self.menu.setFont(QFont('Consolas', 10, QFont.Light))
@@ -341,9 +348,9 @@ class Table(QtWidgets.QTableWidget):
 
     def SaveReadablePackets(self):
         """Save Readable Packets to location.
-        
+
         Save readable information of packet(s) to location.
-        
+
         """
         a = []
         for i in self.selectedItems():
@@ -366,9 +373,9 @@ class Table(QtWidgets.QTableWidget):
 
     def CopyReadablePackets(self):
         """Copy Readable Packets to Clipboard.
-        
+
         Copy readable information of packet(s) to Clipboard.
-        
+
         """
         cb = QtWidgets.QApplication.clipboard()
         cb.clear(mode=cb.Clipboard)
@@ -386,7 +393,7 @@ class Table(QtWidgets.QTableWidget):
 
     def GetReadablePackets(self, i):
         """Using index to give readable packets
-        
+
         Return readable packets' string.
         Args:
             i: index of the packet in list_packet
@@ -406,13 +413,13 @@ class Table(QtWidgets.QTableWidget):
 
 class ColorDelegate(QtWidgets.QStyledItemDelegate):
     """A new colordelegate class derived from QStyledItemDelegate.
-    
+
     Modify every item's selection color in table widget.
     """
 
     def paint(self, painter, option, index):
         """Overwrite original method of selection color
-        
+
         Overwrite original method of selection color,
         ensuring every row's color shows independently,
         even in multiple selection
@@ -439,7 +446,7 @@ class ColorDelegate(QtWidgets.QStyledItemDelegate):
 
 class ProcessingThread(QThread):
     """A class derived from QThread of processing raw packets.
-    
+
     The major parsing packets happens here, which is to get each packet from
     Queue in sniffing process and parse it one by one.
     """
@@ -453,11 +460,11 @@ class ProcessingThread(QThread):
 
     def run(self):
         """Run the thread of processing.
-        
-        The dedicated thread to process raw packet, which is to process 
+
+        The dedicated thread to process raw packet, which is to process
         each raw packet and make it display in the QTableWidget.
         """
-        
+
         num = 0
         global pkt_lst
         while self.isRunning:
@@ -858,8 +865,8 @@ class Ui_MainWindow(object):
 
     def EvtIface(self):
         """Event when combobox changes.
-        
-        The event for selecting the Network Interface in Combobox, 
+
+        The event for selecting the Network Interface in Combobox,
         which is to save it for filter(default:all)
         """
         global flag_dict
@@ -869,8 +876,8 @@ class Ui_MainWindow(object):
 
     def EvtTextPro(self):
         """Event when protocol LineEdit changes.
-        
-        The event for entering the protocol, 
+
+        The event for entering the protocol,
         which is to save it for filter(default:all)
         """
         global flag_dict
@@ -878,8 +885,8 @@ class Ui_MainWindow(object):
 
     def EvtTextSrc(self):
         """Event when src LineEdit changes.
-        
-        The event for entering the src, 
+
+        The event for entering the src,
         which is to save it for filter(default:all)
         """
         global flag_dict
@@ -887,8 +894,8 @@ class Ui_MainWindow(object):
 
     def EvtTextSport(self):
         """Event when sport LineEdit changes.
-        
-        The event for entering the sport, 
+
+        The event for entering the sport,
         which is to save it for filter(default:all)
         """
         global flag_dict
@@ -896,8 +903,8 @@ class Ui_MainWindow(object):
 
     def EvtTextDst(self):
         """Event when dst LineEdit changes.
-        
-        The event for entering the dst, 
+
+        The event for entering the dst,
         which is to save it for filter(default:all)
         """
         global flag_dict
@@ -905,8 +912,8 @@ class Ui_MainWindow(object):
 
     def EvtTextDport(self):
         """Event when dport LineEdit changes.
-        
-        The event for entering the dport, 
+
+        The event for entering the dport,
         which is to save it for filter(default:all)
         """
         global flag_dict
@@ -915,7 +922,7 @@ class Ui_MainWindow(object):
     def EvtOcMode(self):
         """Set OC mode settings.
 
-        The event for selecting the mode of mulitiprocessing 
+        The event for selecting the mode of mulitiprocessing
         for the higher-end performance, which is to save it for filter(default:on).
         """
         global flag_dict
@@ -923,7 +930,7 @@ class Ui_MainWindow(object):
 
     def EvtStart(self):
         """Event when Start button changes.
-        
+
         The event for clicking the Start/Stop button, which is to start/stop the progress.
         At the same time, set window's title accordingly
         """
@@ -956,12 +963,12 @@ class Ui_MainWindow(object):
             self.MainWindow.setWindowTitle(self.title)
             t=Thread(target=self.TsharkInfo)
             t.start()
-    
+
     def TsharkInfo(self):
         """If pyshark is installed, displaying info on mouse event.
 
         """
-        
+
         if (flag_pyshark):
             capture = pyshark.InMemCapture(only_summaries=True)
             l=[]
@@ -972,16 +979,16 @@ class Ui_MainWindow(object):
             share.list_TsharkInfo=[]
             for i in capture:
                 share.list_TsharkInfo.append(i.info)
-            
+
     def EvtMouseOnRow(self, row, column):
         """Mouse entering event for the packet
-        
+
         Show color change effect and Pyshark Info(if install pyshark).
         Args:
             row: row index of the packet with cursor
             column: column index of the packet with cursor
         """
-        
+
         if (self.colorModeStatus == False):
             share.last_row = ''
         else:
@@ -996,7 +1003,7 @@ class Ui_MainWindow(object):
                 for i in range(6):
                     self.tableWidget.item(share.last_row, i).setBackground(QtGui.QColor(
                         color_list[0][0], color_list[0][1], color_list[0][2]))
-                
+
             share.last_row = row
             if (share.flag_search):
                 row = share.dict_search[row]
@@ -1008,7 +1015,7 @@ class Ui_MainWindow(object):
                 pos=QCursor().pos()
                 if (flag_pyshark):
                     """If having pyshark, turn on this feature.
-                    
+
                     Mouse Entering event for every packet when stopped.
                     """
                     try:
@@ -1021,7 +1028,7 @@ class Ui_MainWindow(object):
     def EvtSelect(self):
         """Event when select a row(packet).
 
-        The event for selecting a row(packet), which is to show detailed and 
+        The event for selecting a row(packet), which is to show detailed and
         reassembly information about the chosen packet.
 
         """
@@ -1049,7 +1056,7 @@ class Ui_MainWindow(object):
             self.val = val
         except UnboundLocalError:
             return
-            
+
 
 
         self.final_tcp_seq = ""
@@ -1074,8 +1081,19 @@ class Ui_MainWindow(object):
             s = ""
             s = s + "No. " + str(val) + "\n" + i[0] + "\n"
             for key in i[1]:
-                s = s + \
-                    "%-10s%s\n" % ((key[0].upper() + key[1:] + ":"), i[1][key])
+                if (key=='type' and i[0]=='ICMP'):
+                    s = s + \
+                        "%-10s%s\n" % ((key[0].upper() + key[1:] + ":"), str(i[1][key])+' ('+icmptypes[int(i[1][key])]+')')
+                elif (key=='op' and i[0]=='ARP'):
+                    s = s + \
+                        "%-10s%s\n" % ((key[0].upper() + key[1:] + ":"), str(i[1][key])+' ('+arpoptypes[int(i[1][key])]+')')
+                elif (key=='type' and i[0]=='IGMP'):
+                    s = s + \
+                    "%-10s%s\n" % ((key[0].upper() + key[1:] + ":"), str(i[1][key])+' ('+igmptypes[int(i[1][key])]+')')
+                else:
+                    s = s + \
+                        "%-10s%s\n" % ((key[0].upper() + key[1:] + ":"), i[1][key])
+
             self.CreateNewTab(self.tabWidget, i[0], s)
 
         #whether http request header or not
@@ -1101,7 +1119,7 @@ class Ui_MainWindow(object):
         except:  # no load or decode error
             pass
 
-        
+
         self.CreateNewTab(self.tabWidget, "Whole in hex",
                           share.list_packet[val].hexdump())
 
@@ -1188,12 +1206,12 @@ class Ui_MainWindow(object):
 
     def EvtSearch(self):
         """Event of searching keywords.
-        
-        The event for entering keywords in search bar and using 'ENTER' to proceed, 
-        which is to show the results containing keywords.The packet list shown in GUI 
-        will immediately stop updating while the backend is still sniffering.In other words, 
+
+        The event for entering keywords in search bar and using 'ENTER' to proceed,
+        which is to show the results containing keywords.The packet list shown in GUI
+        will immediately stop updating while the backend is still sniffering.In other words,
         one can only search the packets sniffed according to what have been sniffed.
-        Clear the search bar and all packets sniffed in the backend will start updating again, 
+        Clear the search bar and all packets sniffed in the backend will start updating again,
         even in the period of seaching
         """
         self.tableWidget.setRowCount(0)
@@ -1233,7 +1251,7 @@ class Ui_MainWindow(object):
 
     def EvtContinueReassemble(self):
         """Continue to Reassemble when the fragments' number>2000
-        
+
         """
         self.continue_reassemble_button.hide()
         if (self.final_tcp_seq != ""):
@@ -1243,7 +1261,7 @@ class Ui_MainWindow(object):
 
     def EvtSaveReassemble(self):
         """Save Reassemble to file.
-        
+
         Save Reassemble to file, the location of which is specified by user.
         It may take some time to process, but you can see the process in progress bar.
         """
@@ -1298,14 +1316,14 @@ class Ui_MainWindow(object):
 
     def ColorMode(self):
         """Change Color Mode
-        
+
         Reverse the colorModeStatus flag every time triggered.
         """
         self.colorModeStatus = not self.colorModeStatus
 
     def SetSpeedOnStatusBar(self, l):
         """Set speed label text on status bar.
-        
+
         The right corner of status bar will constantly show speed.
         Args:
             l: [speed_up,speed_down] emitted from QThread
@@ -1330,7 +1348,7 @@ class Ui_MainWindow(object):
 
     def ScrollToEnd(self, l):
         """Make the QTableWidget to scroll to end.
-        
+
         Make the QTableWidget to scroll to end whenever received signal
         from QThread.
         Args:
@@ -1340,7 +1358,7 @@ class Ui_MainWindow(object):
 
     def AddPacketToTable(self, l):
         """Add packet's info to QTableWidget
-    
+
         Add packet's info to QTableWidget whenever received signal
         from QThread.
         Args:
@@ -1362,7 +1380,7 @@ class Ui_MainWindow(object):
 
     def ShowIpResult(self):
         """Show Ip reassembly result in tab2.
-        
+
         Show Ip reassembly result in tab2, supporting plain,utf8 and GB2312 decoded.
         """
         s = "After reassembly:\n"
@@ -1384,7 +1402,7 @@ class Ui_MainWindow(object):
 
     def ShowTcpResult(self):
         """Show TCP reassembly result in tab2.
-        
+
         Show Ip reassembly result in tab2, supporting plain,utf8 and GB2312 decoded.
         ***Support `ANSI ESCAPE CODE`,especially on telnet.
         ***Support parsing HTTP header/content.
@@ -1405,7 +1423,7 @@ class Ui_MainWindow(object):
             h = ""
             for i in response.headers:
                 QtCore.QCoreApplication.processEvents()
-                
+
                 h +=  "%-20s%s\n" % ((str(i)+ ":"), str(response.headers[i]))
             s = "No. " + \
                 str(self.val) + \
@@ -1433,7 +1451,7 @@ class Ui_MainWindow(object):
             self.CreateNewTab(self.tabWidget_2, "HTTP CONTENT",
                               s + content)
         except:
-            
+
             self.file_content = b""
             for i in self.final_tcp_seq:
                 QtCore.QCoreApplication.processEvents()
@@ -1494,10 +1512,10 @@ class Ui_MainWindow(object):
 
     def CreateNewTab(self, tab, title, content):
         """Create a new tab when requirement is given.
-        
+
         Args:
             tab: the tab that the text display
-            title: the title of the tab 
+            title: the title of the tab
             content: the content
         """
         a = QtWidgets.QTextBrowser()
