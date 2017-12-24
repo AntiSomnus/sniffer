@@ -28,7 +28,7 @@ class VAR():
         self.list_info =[]                  # each original packet converted to wireshark type info 
         self.result_row = ''                # the row shown in widget listctrl
 
-        self.tcp_seq = {}  # dictionary for tcp reassmebly
+        self.tcp_seq = []  # list for tcp reassmebly
         self.ip_seq = {}  # dictionary for ip reassmebly
         self.network_speed_down = ''
         self.network_speed_up = ''
