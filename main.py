@@ -1437,7 +1437,6 @@ class Ui_MainWindow(object):
 
             #Because of g-zip, it's hard to determine whether is an end,so just to the end.
             http_request_head_list = total_list[up:]
-            print(http_request_head_list)
             if (val in http_request_head_list):
                 content = b''
                 for i in http_request_head_list:
