@@ -1,11 +1,10 @@
-
 import psutil
 import re
 class VAR():
     """Class for shared variables in multipule threads of main process.
 
     """
-    
+
     def __init__(self):
 
         self.interfaces = []    #network interface list
@@ -25,10 +24,10 @@ class VAR():
         self.list_packet = []               # each original packet
         self.list_tmp = []
         self.list_byte =[]                  # each original packet with bytes
-        self.list_info =[]                  # each original packet converted to wireshark type info 
+        self.list_info =[]                  # each original packet converted to wireshark type info
         self.result_row = ''                # the row shown in widget listctrl
 
-        self.tcp_seq = {}  # dictionary for tcp reassmebly
+        self.tcp_seq = []  # list for tcp reassmebly
         self.ip_seq = {}  # dictionary for ip reassmebly
         self.network_speed_down = ''
         self.network_speed_up = ''
@@ -41,7 +40,7 @@ class VAR():
         self.dict_search={}  # {after search:before search}
         self.dict_mac2name={} #mac:name of mac
         self.dict_expect_tcp_seq={} #(src,dst,sport,dport):(expect seq,syn flag)
-        
+
         self.list_TsharkInfo=[] #tshark info
 
         self.last_row=''  #last mouse row

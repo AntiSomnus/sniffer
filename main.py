@@ -92,76 +92,97 @@ def packet_tcp_seq(seq):
     Returns:
     list like [(seq, (packet number, Raw len)),...]
     """
-    seq_keys = list(share.tcp_seq.keys())
-    seq_keys.sort()
-    position = seq_keys.index(seq)
-    p, q, final_tcp_seq = [], [], []
-    p = packet_tcp_seq_backward(seq_keys, position, p)[::-1]
-    p.append((seq, share.tcp_seq[seq]))
-    q = packet_tcp_seq_forward(seq_keys, position, q)
-    final_tcp_seq = p + q
+    selected_seq = seq
+    num_list = []
+    seq_list = []
+    len_list = []
+    assemble_candidate = []
+    final_tcp_seq = []
+    for item in share.tcp_seq:
+        num_list.append(item[0])
+        seq_list.append(item[1])
+        len_list.append(item[2])
+    i = 0
+    for seq in seq_list:
+        if seq == selected_seq:
+            assemble_candidate.append({"p_position":i,
+                                       "q_position":i,
+                                       "p":[(seq_list[i], (num_list[i], len_list[i]))],
+                                       "q":[(seq_list[i], (num_list[i], len_list[i]))]})
+        i += 1
+    flag = True
+    while flag:
+        assemble_candidate, flag = packet_tcp_seq_forward(assemble_candidate, num_list, seq_list, len_list)
+    flag = True
+    while flag:
+        assemble_candidate, flag = packet_tcp_seq_backward(assemble_candidate, num_list, seq_list, len_list)
+    for candidate in assemble_candidate:
+        candidate["p"].pop(0)
+        if len(final_tcp_seq) < len(candidate["q"] + candidate["p"]):
+            final_tcp_seq = candidate["q"] + candidate["p"]
     return final_tcp_seq
 
 
-def packet_tcp_seq_forward(seq_keys, position, p):
+def packet_tcp_seq_forward(assemble_candidate, num_list, seq_list, len_list):
     """Return tcp reassembly forward result
 
     Args:
-        seq_keys: [description]
-        position: [description]
-        p: [description]
+        assemble_candidate: list of all posibilities that the TCP packets can be assembled
+        num_list: list of packet.num
+        seq_list: list of packet.seq
+        len_list: list of packet.len
 
     Returns:
         The forward part(packet num larger that this one)
     list like [(seq, (packet number, Raw len)),...]
     """
-    flag = True
-    total_len = len(seq_keys)
-    remain_len = total_len - 1
-    while position < total_len - 1:
+    new_assemble_candidate = []
+    for candidate in assemble_candidate:
+        position = candidate["p_position"]
         i = position + 1
-        while i < total_len:
-            if (i > total_len - 0.5 * remain_len and flag == True):
-                flag == False
-            if seq_keys[position] + share.tcp_seq[seq_keys[position]][1] == seq_keys[i]:
-                position = i
-                p.append(
-                    (seq_keys[position], share.tcp_seq[seq_keys[position]]))
-                break
+        while i < len(seq_list):
+            if seq_list[position] + len_list[position] == seq_list[i]:
+                candidate["p_position"] = i
+                candidate["p"].append((seq_list[i], (num_list[i], len_list[i])))
+                new_assemble_candidate.append(candidate)
             i += 1
-        if i == total_len:
-            break
-    return p
+    if new_assemble_candidate == []:
+        new_assemble_candidate = assemble_candidate
+        flag = False
+    else:
+        flag = True
+    return new_assemble_candidate, flag
 
 
-def packet_tcp_seq_backward(seq_keys, position, p):
+def packet_tcp_seq_backward(assemble_candidate, num_list, seq_list, len_list):
     """Return tcp reassembly backward result
 
     Args:
-        seq_keys: [description]
-        position: [description]
-        p: [description]
+        assemble_candidate: list of all posibilities that the TCP packets can be assembled
+        num_list: list of packet.num
+        seq_list: list of packet.seq
+        len_list: list of packet.len
 
     Returns:
-        The backward part(packet num smaller that this one)
+        The forward part(packet num larger that this one)
     list like [(seq, (packet number, Raw len)),...]
     """
-    flag = True
-    remain_len = position
-    while position >= 1:
+    new_assemble_candidate = []
+    for candidate in assemble_candidate:
+        position = candidate["q_position"]
         i = position - 1
         while i >= 0:
-            if (i < remain_len * 0.5 and flag == True):
-                flag = False
-            if seq_keys[i] + share.tcp_seq[seq_keys[i]][1] == seq_keys[position]:
-                position = i
-                p.append(
-                    (seq_keys[position], share.tcp_seq[seq_keys[position]]))
-                break
+            if seq_list[i] + len_list[i] == seq_list[position]:
+                candidate["q_position"] = i
+                candidate["q"].insert(0, (seq_list[i], (num_list[i], len_list[i])))
+                new_assemble_candidate.append(candidate)
             i -= 1
-        if i == -1:
-            break
-    return p
+    if new_assemble_candidate == []:
+        new_assemble_candidate = assemble_candidate
+        flag = False
+    else:
+        flag = True
+    return new_assemble_candidate, flag
 
 
 """The following function is used to give wireshark-type string"""
@@ -315,8 +336,10 @@ class Table(QtWidgets.QTableWidget):
         if (share.last_row != ''):
             last_row = share.last_row
             if (share.flag_search):
-
-                last_row = share.dict_search[last_row]
+                try:
+                    last_row = share.dict_search[last_row]
+                except:
+                    return
             color_list = share.list_packet[last_row].getColor()
             for i in range(6):
                 self.item(share.last_row, i).setBackground(QtGui.QColor(
@@ -487,7 +510,7 @@ class ProcessingThread(QThread):
                         seqlen = len(packet.packet[Raw])
                     except:
                         seqlen = 0
-                    share.tcp_seq[seq] = (packet.num, seqlen)
+                    share.tcp_seq.append((packet.num, seq, seqlen))
 
                     try:
                         fetch_dict = share.dict_expect_tcp_seq[(
@@ -536,7 +559,7 @@ class ProcessingThread(QThread):
                     # make the scroll bar update
                     self.Scroll.emit("True")
             else:
-                pass
+                sleep(0.2)
 
     def stop(self):
         self.isRunning = False
@@ -1096,19 +1119,6 @@ class Ui_MainWindow(object):
 
             self.CreateNewTab(self.tabWidget, i[0], s)
 
-        #whether http request header or not
-        try:
-            if (share.list_packet[val].packet[TCP].sport==80 or share.list_packet[val].packet[TCP].dport==80):
-                info,header=HttpHeader(share.list_packet[val].packet_to_load_utf8()).getheader()
-                s = ""
-                s = s + "No. " + str(val) + "\n"+info+"\n"
-                for key in header:
-                    s = s + \
-                        "%-20s%s\n" % ((key + ":"), header[key])
-                self.CreateNewTab(self.tabWidget, "HTTP Request Header",s)
-        except:
-            pass
-
         try:
             s = ""
             s = s + "No. " + str(val) + "\n" + i[0] + "\n"
@@ -1405,26 +1415,48 @@ class Ui_MainWindow(object):
 
         Show Ip reassembly result in tab2, supporting plain,utf8 and GB2312 decoded.
         ***Support `ANSI ESCAPE CODE`,especially on telnet.
-        ***Support parsing HTTP header/content.
+        ***Support parsing HTTP response header/content and request(get/post)
         """
         s = "After reassembly:\n"
         s_gb = s_utf8 = s_raw = ""
         try:
-            first_index = self.final_tcp_seq[0][1][0]
-            content = b''
+            """Find HTTP Response"""
+            val = self.val
+            total_list = []
             for i in self.final_tcp_seq:
-                QtCore.QCoreApplication.processEvents()
-                content += share.list_packet[i[1][0]].load
-            for i in self.final_tcp_seq:
-                info=share.list_packet[i[1][0]].load.split(b'\r\n')[0].decode('utf8')
-                break
+                total_list.append(i[1][0])
+            current_index = total_list.index(val)
+            for i in range(current_index, -1, -1):
+                """Find the nearest packet with opening `HTTP`."""
+                try:
+                    if (share.list_packet[total_list[i]].load[:4] == b'HTTP'):
+                        up = i
+                        break
+                except:
+                    raise ValueError
+
+            #Because of g-zip, it's hard to determine whether is an end,so just to the end.
+            http_request_head_list = total_list[up:]
+            print(http_request_head_list)
+            if (val in http_request_head_list):
+                content = b''
+                for i in http_request_head_list:
+                    QtCore.QCoreApplication.processEvents()
+                    try:
+                        content += share.list_packet[i].load
+                    except:
+                        pass
+            first_index = http_request_head_list[0]
+
+            info = share.list_packet[first_index].load.split(b'\r\n')[
+                0].decode('utf8')
             response = HttpConverter(content).getcontent()
 
             h = ""
             for i in response.headers:
                 QtCore.QCoreApplication.processEvents()
 
-                h +=  "%-20s%s\n" % ((str(i)+ ":"), str(response.headers[i]))
+                h += "%-20s%s\n" % ((str(i) + ":"), str(response.headers[i]))
             s = "No. " + \
                 str(self.val) + \
                 " can be TCP assembled by following %d packet" % len(
@@ -1436,7 +1468,7 @@ class Ui_MainWindow(object):
             for i in self.final_tcp_seq:
                 QtCore.QCoreApplication.processEvents()
                 s = s + "No. " + str(i[1][0]) + ", "
-            s = s[:-2] + "\n" + "After reassembly:" + "\n" + "\n"
+            s = s[:-2] + "\n" + "After reassembly:" + "\n"
             try:
                 content = response.data
                 content = content.decode('utf8')
@@ -1444,14 +1476,63 @@ class Ui_MainWindow(object):
                 content = str(content)[2:-1]
 
             self.http_content = response.data
-            h = "HTTP Header in No. " + str(first_index) + '\n' +info+'\n'+ h
+            h = "HTTP Response Header in No. " + \
+                str(first_index) + '\n' + info + '\n' + h
 
-            self.CreateNewTab(self.tabWidget_2, "HTTP HEADER", h)
+            self.CreateNewTab(self.tabWidget_2, "HTTP Response Header", h)
 
-            self.CreateNewTab(self.tabWidget_2, "HTTP CONTENT",
+            self.CreateNewTab(self.tabWidget_2, "HTTP Response Content",
                               s + content)
         except:
+            try:
+                """Find HTTP request."""
+                val = self.val
+                if (share.list_packet[val].packet[TCP].sport == 80 or share.list_packet[val].packet[TCP].dport == 80):
+                    total_list = []
+                    for i in self.final_tcp_seq:
+                        total_list.append(i[1][0])
+                    current_index = total_list.index(val)
+                    for i in range(current_index, -1, -1):
+                        try:
+                            if (share.list_packet[total_list[i]].load[:3] == b'GET'):
+                                up = i
+                                term = ' (GET)'
+                                break
+                            elif (share.list_packet[total_list[i]].load[:4] == b'POST'):
+                                up = i
+                                term = ' (POST)'
+                                break
+                        except:
+                            raise ValueError
 
+                    for i in range(current_index, len(total_list)):
+                        try:
+                            if (share.list_packet[total_list[i]].load[-4:] == b'\r\n\r\n'):
+                                down = i
+                                break
+                        except:
+                            raise ValueError
+
+                    http_request_head_list = total_list[up:down + 1]
+                    if (val in http_request_head_list):
+                        content = b''
+                        for i in http_request_head_list:
+                            QtCore.QCoreApplication.processEvents()
+                            content += share.list_packet[i].load
+
+                        info, header = HttpHeader(
+                            content.decode('utf8')).getheader()
+                        s = "HTTP Request Header is assembled by "
+                        for i in http_request_head_list:
+                            s += "No." + str(i) + ', '
+                        s = s[:-2] + '\n' + info + '\n'
+                        for key in header:
+                            s = s + \
+                                "%-20s%s\n" % ((key + ":"), header[key])
+                        self.CreateNewTab(self.tabWidget_2,
+                                          "HTTP Request" + term, s)
+            except:
+                pass
             self.file_content = b""
             for i in self.final_tcp_seq:
                 QtCore.QCoreApplication.processEvents()
@@ -1470,12 +1551,13 @@ class Ui_MainWindow(object):
                         share.list_packet[i[1][0]].packet_to_load_utf8()
             q = ""
             q = q + "".join(packet_align(s_raw))
-            s_gb = s + "\n" + "Decoded by GB2312:" + "\n" + s_gb
-            s_utf8 = s + "\n" + "Decoded by UTF8:" + "\n" + s_utf8
-            s_raw = s + "\n" + "Raw bytes:" + "\n" + q
+            s = "After reassembly:\n"
+            s_gb = s + "Decoded by GB2312:" + "\n" + s_gb
+            s_utf8 = s + "Decoded by UTF8:" + "\n" + s_utf8
+            s_raw = s + "Raw bytes:" + "\n" + q
 
             if ('\033[') in s_gb:
-                """Add a new tab showing ANSI Escape Code
+                """Add a new tab showing ANSI Escape Code.
 
                 Detect the data may contain ANSI Escape Code.
                 Using `ansi2html` library to parse it to css and show.
@@ -1501,6 +1583,7 @@ class Ui_MainWindow(object):
             self.CreateNewTab(self.tabWidget_2, "TCP reassemble Hex", s_raw)
             self.CreateNewTab(self.tabWidget_2, "TCP reassemble UTF-8", s_utf8)
             self.CreateNewTab(self.tabWidget_2, "TCP reassemble GB2312", s_gb)
+
 
     def OpenFile(self, filename):
         """Open file in a new thread to prevent GUI from freezing.
