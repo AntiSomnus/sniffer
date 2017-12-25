@@ -8,7 +8,7 @@ from PyQt5.QtWidgets import QHBoxLayout, QFrame, QAbstractItemView, QSplitter, \
     QStyleFactory, QMenu, QShortcut,\
     QMainWindow, QApplication, QWidget, QAction, QTableWidget,\
     QTableWidgetItem, QVBoxLayout, \
-    QTabWidget, QProgressBar, QFileDialog, QCompleter, QStyledItemDelegate
+    QTabWidget, QProgressBar, QFileDialog, QCompleter, QStyledItemDelegate,QProxyStyle,QStyle
 
 
 from threading import Thread
@@ -446,6 +446,18 @@ class Table(QtWidgets.QTableWidget):
         os.system(filename)
 
 
+class Style(QProxyStyle):
+    """A new style class derived from QProxyStyle.
+
+    Make the tablewidget no dotted line without sacrificing the control by keyboard
+    """
+
+    def drawPrimitive(self, element, option, painter, widget):
+        if element ==  QStyle.PE_FrameFocusRect:
+            return
+        super().drawPrimitive(element, option, painter, widget)
+
+
 class ColorDelegate(QtWidgets.QStyledItemDelegate):
     """A new colordelegate class derived from QStyledItemDelegate.
 
@@ -773,8 +785,10 @@ class Ui_MainWindow(object):
         self.tableWidget.horizontalHeader().setFont(QFont('Consolas', 11, QFont.Light))
         self.tableWidget.setSizeAdjustPolicy(
             QtWidgets.QAbstractScrollArea.AdjustToContents)
+
         #No border when focus
-        #self.tableWidget.setFocusPolicy(Qt.NoFocus)
+        self.tableWidget.setStyle(Style())
+        self.tableWidget.setStyleSheet(" QTableWidget {outline: 0;}" )
         self.tableWidget.setMinimumHeight(50)
         self.tableWidget.setColumnCount(6)
         self.tableWidget.verticalHeader().setVisible(False)
@@ -895,6 +909,7 @@ class Ui_MainWindow(object):
         self.quickstart = QShortcut(
             QKeySequence("Alt+Q"), self.centralwidget)
         self.quickstart.activated.connect(self.EvtStart)
+
 
         self.title = 'Sniffer V2.0'
         self.MainWindow.setWindowIcon(QIcon(os.path.dirname(
@@ -1502,6 +1517,11 @@ class Ui_MainWindow(object):
 
             self.CreateNewTab(self.tabWidget_2, "HTTP Response Content",
                               s + content)
+            a = QtWidgets.QTextBrowser()
+            a.setFrameStyle(QFrame.NoFrame)
+            a.setHtml(content)
+            self.tabWidget_2.addTab(
+                a, 'HTML')
         except:
             try:
                 """Find HTTP request."""
@@ -1525,13 +1545,19 @@ class Ui_MainWindow(object):
                             raise ValueError
 
                     for i in range(current_index, len(total_list)):
-                        try:
-                            if (share.list_packet[total_list[i]].haslayer(Raw)):
-                                if (share.list_packet[total_list[i]].load[-4:] == b'\r\n\r\n' or share.list_packet[total_list[i]].len() < 1000):
-                                    down = i
-                                    break
-                        except:
-                            raise ValueError
+                        if (i==len(total_list)-1):
+                            down=i
+                            break
+                        else:
+                            try:
+                                if (share.list_packet[total_list[i]].haslayer(Raw) ):
+                                    if (not share.list_packet[total_list[i+1]].haslayer(Raw) or
+                                        b'GET'==share.list_packet[total_list[i+1]].load[:3] or
+                                        b'POST'==share.list_packet[total_list[i+1]].load[:4]):
+                                        down = i
+                                        break
+                            except:
+                                raise ValueError
 
                     http_request_head_list = total_list[up:down + 1]
                     if (val in http_request_head_list):
@@ -1539,8 +1565,7 @@ class Ui_MainWindow(object):
                         for i in http_request_head_list:
                             QtCore.QCoreApplication.processEvents()
                             content += share.list_packet[i].load
-
-                        info, header = HttpHeader(
+                        info, header,content = HttpHeader(
                             content.decode('utf8')).getheader()
                         s = "HTTP Request Header is assembled by "
                         for i in http_request_head_list:
@@ -1550,59 +1575,66 @@ class Ui_MainWindow(object):
                             s = s + \
                                 "%-20s%s\n" % ((key + ":"), header[key])
                         self.CreateNewTab(self.tabWidget_2,
-                                          "HTTP Request" + term, s)
+                                          "HTTP Request Header" + term, s)
+                        if (content!=""):
+                            s = "HTTP Request Content is assembled by "
+                            for i in http_request_head_list:
+                                s += "No." + str(i) + ', '
+                            s = s[:-2] + '\n'
+                            self.CreateNewTab(self.tabWidget_2,
+                                          "HTTP Request Content" + term,s+content)
             except:
                 pass
-            self.file_content = b""
-            for i in self.final_tcp_seq:
-                QtCore.QCoreApplication.processEvents()
-                try:
-                    self.file_content += share.list_packet[i[1][0]].load
-                except:
-                    pass
+        self.file_content = b""
+        for i in self.final_tcp_seq:
+            QtCore.QCoreApplication.processEvents()
+            try:
+                self.file_content += share.list_packet[i[1][0]].load
+            except:
+                pass
 
-                s_raw = s_raw + \
-                    share.list_packet[i[1][0]].packet_to_load_plain()
-                if (i[1][1] != 0):
-                    s_gb = s_gb + \
-                        share.list_packet[i[1][0]].packet_to_load_gb(
-                            ignore=True)
-                    s_utf8 = s_utf8 + \
-                        share.list_packet[i[1][0]].packet_to_load_utf8()
-            q = ""
-            q = q + "".join(packet_align(s_raw))
-            s = "After reassembly:\n"
-            s_gb = s + "Decoded by GB2312:" + "\n" + s_gb
-            s_utf8 = s + "Decoded by UTF8:" + "\n" + s_utf8
-            s_raw = s + "Raw bytes:" + "\n" + q
+            s_raw = s_raw + \
+                share.list_packet[i[1][0]].packet_to_load_plain()
+            if (i[1][1] != 0):
+                s_gb = s_gb + \
+                    share.list_packet[i[1][0]].packet_to_load_gb(
+                        ignore=True)
+                s_utf8 = s_utf8 + \
+                    share.list_packet[i[1][0]].packet_to_load_utf8()
+        q = ""
+        q = q + "".join(packet_align(s_raw))
+        s = "After reassembly:\n"
+        s_gb = s + "Decoded by GB2312:" + "\n" + s_gb
+        s_utf8 = s + "Decoded by UTF8:" + "\n" + s_utf8
+        s_raw = s + "Raw bytes:" + "\n" + q
 
-            if ('\033[') in s_gb:
-                """Add a new tab showing ANSI Escape Code.
+        if ('\033[') in s_gb:
+            """Add a new tab showing ANSI Escape Code.
 
-                Detect the data may contain ANSI Escape Code.
-                Using `ansi2html` library to parse it to css and show.
-                """
-                a = QtWidgets.QTextBrowser()
-                a.setFrameStyle(QFrame.NoFrame)
+            Detect the data may contain ANSI Escape Code.
+            Using `ansi2html` library to parse it to css and show.
+            """
+            a = QtWidgets.QTextBrowser()
+            a.setFrameStyle(QFrame.NoFrame)
 
-                conv = Ansi2HTMLConverter()
-                html = conv.convert(s_gb)
-                html = str.replace(html, "\n</span>", "</span>")
-                #somehow QyQt has different between html in memory and file
-                f = open("temp.html", "w")
-                f.write(html)
-                f.close()
-                with open('temp.html', 'r') as content_file:
-                    content = content_file.read()
-                a.setHtml(content)
-                content_file.close()
-                os.remove('temp.html')
-                self.tabWidget_2.addTab(
-                    a, 'Console Type(Parsing ANSI Escape Code)')
+            conv = Ansi2HTMLConverter()
+            html = conv.convert(s_gb)
+            html = str.replace(html, "\n</span>", "</span>")
+            #somehow QyQt has different between html in memory and file
+            f = open("temp.html", "w")
+            f.write(html)
+            f.close()
+            with open('temp.html', 'r') as content_file:
+                content = content_file.read()
+            a.setHtml(content)
+            content_file.close()
+            os.remove('temp.html')
+            self.tabWidget_2.addTab(
+                a, 'Console Type(Parsing ANSI Escape Code)')
 
-            self.CreateNewTab(self.tabWidget_2, "TCP reassemble Hex", s_raw)
-            self.CreateNewTab(self.tabWidget_2, "TCP reassemble UTF-8", s_utf8)
-            self.CreateNewTab(self.tabWidget_2, "TCP reassemble GB2312", s_gb)
+        self.CreateNewTab(self.tabWidget_2, "TCP reassemble Hex", s_raw)
+        self.CreateNewTab(self.tabWidget_2, "TCP reassemble UTF-8", s_utf8)
+        self.CreateNewTab(self.tabWidget_2, "TCP reassemble GB2312", s_gb)
 
     def OpenFile(self, filename):
         """Open file in a new thread to prevent GUI from freezing.
