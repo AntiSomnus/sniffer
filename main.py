@@ -1,5 +1,5 @@
 #regex for ipv4 and ipv6 in the same time
-regex="((^\s*((([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]))\s*$)|(^\s*((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))(%.+)?\s*$))"
+regex = "((^\s*((([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]))\s*$)|(^\s*((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))(%.+)?\s*$))"
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtGui import QIcon, QFont, QCursor, QPixmap, QColor, QKeySequence, QPalette
@@ -23,10 +23,10 @@ from datetime import datetime
 import re
 """Import from other files in this directory"""
 from var import VAR
-from packet_r import Packet_r,igmptypes,arpoptypes
-from httpconverter import HttpConverter,HttpHeader
-# redirect all output to files in order to keep the console clean
-#filename  = open("outputfile.txt",'w')
+from packet_r import Packet_r, igmptypes, arpoptypes
+from httpconverter import HttpConverter, HttpHeader
+#redirect all output to files in order to keep the console clean
+#filename  = open(r"outputfile.txt",'w')
 #sys.stdout = filename
 """Used to make long string wrap to newline"""
 import textwrap
@@ -39,10 +39,9 @@ from contextlib import contextmanager
 """Optional usage of pyshark to give brief info"""
 try:
     import pyshark
-    flag_pyshark=True
+    flag_pyshark = True
 except ImportError:
-    flag_pyshark=False
-
+    flag_pyshark = False
 
 
 @contextmanager
@@ -80,7 +79,7 @@ import psutil
 """The following functions are used to handle tcp reassembly"""
 
 
-def packet_tcp_seq(seq):
+def packet_tcp_seq(seq, src, dst, sport, dport):
     """Return the related fragments of given `seq`.
 
     When given the `seq`, processing `packet_tcp_seq_backward`
@@ -88,36 +87,48 @@ def packet_tcp_seq(seq):
     all over the storage.
     Args:
         seq: int, the seq number of a TCP packet
-
+        src: str, MAC src a TCP packet
+        dst: str, MAC dst a TCP packet
+        sport: str, TCP sport a TCP packet
+        dport: str, TCP dport a TCP packet
     Returns:
     list like [(seq, (packet number, Raw len)),...]
     """
     selected_seq = seq
+    selected_src = src
+    selected_dst = dst
+    selected_sport = sport
+    selected_dport = dport
     num_list = []
     seq_list = []
     len_list = []
     assemble_candidate = []
     final_tcp_seq = []
     for item in share.tcp_seq:
-        num_list.append(item[0])
-        seq_list.append(item[1])
-        len_list.append(item[2])
+        if item[3] == selected_src and item[4] == selected_dst and item[5] == selected_sport and item[6] == selected_dport:
+            num_list.append(item[0])
+            seq_list.append(item[1])
+            len_list.append(item[2])
     i = 0
     for seq in seq_list:
         if seq == selected_seq:
-            assemble_candidate.append({"p_position":i,
-                                       "q_position":i,
-                                       "p":[(seq_list[i], (num_list[i], len_list[i]))],
-                                       "q":[(seq_list[i], (num_list[i], len_list[i]))]})
+            assemble_candidate.append({"p_position": i,
+                                       "q_position": i,
+                                       "p": [(seq_list[i], (num_list[i], len_list[i]))],
+                                       "q": [(seq_list[i], (num_list[i], len_list[i]))]})
         i += 1
     flag = True
     while flag:
-        assemble_candidate, flag = packet_tcp_seq_forward(assemble_candidate, num_list, seq_list, len_list)
+        assemble_candidate, flag = packet_tcp_seq_forward(
+            assemble_candidate, num_list, seq_list, len_list)
     flag = True
     while flag:
-        assemble_candidate, flag = packet_tcp_seq_backward(assemble_candidate, num_list, seq_list, len_list)
+        assemble_candidate, flag = packet_tcp_seq_backward(
+            assemble_candidate, num_list, seq_list, len_list)
     for candidate in assemble_candidate:
-        candidate["p"].pop(0)
+        if (candidate["p"]):
+            candidate["p"].pop(0)
+
         if len(final_tcp_seq) < len(candidate["q"] + candidate["p"]):
             final_tcp_seq = candidate["q"] + candidate["p"]
     return final_tcp_seq
@@ -174,7 +185,8 @@ def packet_tcp_seq_backward(assemble_candidate, num_list, seq_list, len_list):
         while i >= 0:
             if seq_list[i] + len_list[i] == seq_list[position]:
                 candidate["q_position"] = i
-                candidate["q"].insert(0, (seq_list[i], (num_list[i], len_list[i])))
+                candidate["q"].insert(
+                    0, (seq_list[i], (num_list[i], len_list[i])))
                 new_assemble_candidate.append(candidate)
             i -= 1
     if new_assemble_candidate == []:
@@ -506,11 +518,16 @@ class ProcessingThread(QThread):
                 # possible preprocess for TCP reassembly
                 if packet.haslayer(TCP):
                     seq = packet.packet[TCP].seq
+                    src = packet.src
+                    dst = packet.dst
+                    sport = packet.packet[TCP].sport
+                    dport = packet.packet[TCP].dport
                     try:
                         seqlen = len(packet.packet[Raw])
                     except:
                         seqlen = 0
-                    share.tcp_seq.append((packet.num, seq, seqlen))
+                    share.tcp_seq.append(
+                        (packet.num, seq, seqlen, src, dst, sport, dport))
 
                     try:
                         fetch_dict = share.dict_expect_tcp_seq[(
@@ -693,7 +710,7 @@ class Ui_MainWindow(object):
         self.sport = QtWidgets.QLineEdit(self.centralwidget)
         self.sport.setFont(QFont('Consolas', 10, QFont.Light))
         self.sport.textChanged.connect(self.EvtTextSport)
-        self.sport.setValidator(QtGui.QIntValidator(0,65535))
+        self.sport.setValidator(QtGui.QIntValidator(0, 65535))
         # dst LineEdit
         self.dst = QtWidgets.QLineEdit(self.centralwidget)
         self.dst.setFont(QFont('Consolas', 10, QFont.Light))
@@ -703,7 +720,7 @@ class Ui_MainWindow(object):
         self.dport = QtWidgets.QLineEdit(self.centralwidget)
         self.dport.setFont(QFont('Consolas', 10, QFont.Light))
         self.dport.textChanged.connect(self.EvtTextDport)
-        self.dport.setValidator(QtGui.QIntValidator(0,65535))
+        self.dport.setValidator(QtGui.QIntValidator(0, 65535))
         '''2nd line layout'''
         self.gridLayout.addWidget(self.label_pro, 1, 0, 1, 1)
         self.gridLayout.addWidget(self.pro, 1, 1, 1, 1)
@@ -757,7 +774,7 @@ class Ui_MainWindow(object):
         self.tableWidget.setSizeAdjustPolicy(
             QtWidgets.QAbstractScrollArea.AdjustToContents)
         #No border when focus
-        self.tableWidget.setFocusPolicy(Qt.NoFocus)
+        #self.tableWidget.setFocusPolicy(Qt.NoFocus)
         self.tableWidget.setMinimumHeight(50)
         self.tableWidget.setColumnCount(6)
         self.tableWidget.verticalHeader().setVisible(False)
@@ -879,7 +896,6 @@ class Ui_MainWindow(object):
             QKeySequence("Alt+Q"), self.centralwidget)
         self.quickstart.activated.connect(self.EvtStart)
 
-
         self.title = 'Sniffer V2.0'
         self.MainWindow.setWindowIcon(QIcon(os.path.dirname(
             os.path.realpath(__file__)) + "\\icons\\icon.png"))
@@ -984,7 +1000,7 @@ class Ui_MainWindow(object):
         else:
             self.button.setText('Start')
             self.MainWindow.setWindowTitle(self.title)
-            t=Thread(target=self.TsharkInfo)
+            t = Thread(target=self.TsharkInfo)
             t.start()
 
     def TsharkInfo(self):
@@ -994,12 +1010,12 @@ class Ui_MainWindow(object):
 
         if (flag_pyshark):
             capture = pyshark.InMemCapture(only_summaries=True)
-            l=[]
+            l = []
 
             for i in share.list_packet:
                 l.append(bytes(i.packet))
             capture.feed_packets(l)
-            share.list_TsharkInfo=[]
+            share.list_TsharkInfo = []
             for i in capture:
                 share.list_TsharkInfo.append(i.info)
 
@@ -1034,20 +1050,23 @@ class Ui_MainWindow(object):
             for i in range(6):
                 self.tableWidget.item(share.last_row, i).setBackground(QtGui.QColor(
                     (color_list[0][0] - 10) % 256, (color_list[0][1] - 10) % 256, (color_list[0][2] - 10) % 256))
-            if (flag_dict['start']==False):
-                pos=QCursor().pos()
+            if (flag_dict['start'] == False):
+                pos = QCursor().pos()
                 if (flag_pyshark):
                     """If having pyshark, turn on this feature.
 
                     Mouse Entering event for every packet when stopped.
                     """
                     try:
-                        tooltipstr=share.list_TsharkInfo[row]
-                        tooltipstr=tooltipstr.replace('\\xe2\\x86\\x92','→')
-                        QtWidgets.QToolTip.showText(pos, textwrap.fill(tooltipstr, 20))
+                        tooltipstr = share.list_TsharkInfo[row]
+                        tooltipstr = tooltipstr.replace('\\xe2\\x86\\x92', '→')
+                        QtWidgets.QToolTip.showText(
+                            pos, textwrap.fill(tooltipstr, 20))
                     except:
-                        QtWidgets.QToolTip.showText(pos,"Processing")
-                    QtWidgets.QToolTip.setFont(QFont('Consolas', 10, QFont.Light))
+                        QtWidgets.QToolTip.showText(pos, "Processing")
+                    QtWidgets.QToolTip.setFont(
+                        QFont('Consolas', 10, QFont.Light))
+
     def EvtSelect(self):
         """Event when select a row(packet).
 
@@ -1080,8 +1099,6 @@ class Ui_MainWindow(object):
         except UnboundLocalError:
             return
 
-
-
         self.final_tcp_seq = ""
         self.final_ip_seq = ""
         self.http_content = ""
@@ -1104,18 +1121,22 @@ class Ui_MainWindow(object):
             s = ""
             s = s + "No. " + str(val) + "\n" + i[0] + "\n"
             for key in i[1]:
-                if (key=='type' and i[0]=='ICMP'):
+                if (key == 'type' and i[0] == 'ICMP'):
                     s = s + \
-                        "%-10s%s\n" % ((key[0].upper() + key[1:] + ":"), str(i[1][key])+' ('+icmptypes[int(i[1][key])]+')')
-                elif (key=='op' and i[0]=='ARP'):
+                        "%-10s%s\n" % ((key[0].upper() + key[1:] + ":"),
+                                       str(i[1][key]) + ' (' + icmptypes[int(i[1][key])] + ')')
+                elif (key == 'op' and i[0] == 'ARP'):
                     s = s + \
-                        "%-10s%s\n" % ((key[0].upper() + key[1:] + ":"), str(i[1][key])+' ('+arpoptypes[int(i[1][key])]+')')
-                elif (key=='type' and i[0]=='IGMP'):
+                        "%-10s%s\n" % ((key[0].upper() + key[1:] + ":"), str(
+                            i[1][key]) + ' (' + arpoptypes[int(i[1][key])] + ')')
+                elif (key == 'type' and i[0] == 'IGMP'):
                     s = s + \
-                    "%-10s%s\n" % ((key[0].upper() + key[1:] + ":"), str(i[1][key])+' ('+igmptypes[int(i[1][key])]+')')
+                        "%-10s%s\n" % ((key[0].upper() + key[1:] + ":"),
+                                       str(i[1][key]) + ' (' + igmptypes[int(i[1][key])] + ')')
                 else:
                     s = s + \
-                        "%-10s%s\n" % ((key[0].upper() + key[1:] + ":"), i[1][key])
+                        "%-10s%s\n" % ((key[0].upper() +
+                                        key[1:] + ":"), i[1][key])
 
             self.CreateNewTab(self.tabWidget, i[0], s)
 
@@ -1128,7 +1149,6 @@ class Ui_MainWindow(object):
                               s + "Decoded by GB2312:\n" + share.list_packet[val].packet_to_load_gb())
         except:  # no load or decode error
             pass
-
 
         self.CreateNewTab(self.tabWidget, "Whole in hex",
                           share.list_packet[val].hexdump())
@@ -1146,10 +1166,10 @@ class Ui_MainWindow(object):
                         self.final_ip_seq = 'Too large to assemble'
 
             if "TCP" in i:
-                try:
-                    self.final_tcp_seq = packet_tcp_seq(i[1]["seq"])
-                except:
-                    self.final_tcp_seq = 'Too large to assemble'
+                p = share.list_packet[val]
+                self.final_tcp_seq = packet_tcp_seq(
+                    p.seq, p.src, p.dst, p.sport, p.dport)
+
         self.reassemble_size = 0
         """TCP"""
         if (self.final_tcp_seq != ""):  # Satisify TCP reassembly
@@ -1506,9 +1526,10 @@ class Ui_MainWindow(object):
 
                     for i in range(current_index, len(total_list)):
                         try:
-                            if (share.list_packet[total_list[i]].load[-4:] == b'\r\n\r\n'):
-                                down = i
-                                break
+                            if (share.list_packet[total_list[i]].haslayer(Raw)):
+                                if (share.list_packet[total_list[i]].load[-4:] == b'\r\n\r\n' or share.list_packet[total_list[i]].len() < 1000):
+                                    down = i
+                                    break
                         except:
                             raise ValueError
 
@@ -1582,7 +1603,6 @@ class Ui_MainWindow(object):
             self.CreateNewTab(self.tabWidget_2, "TCP reassemble Hex", s_raw)
             self.CreateNewTab(self.tabWidget_2, "TCP reassemble UTF-8", s_utf8)
             self.CreateNewTab(self.tabWidget_2, "TCP reassemble GB2312", s_gb)
-
 
     def OpenFile(self, filename):
         """Open file in a new thread to prevent GUI from freezing.
