@@ -84,9 +84,6 @@ New feature is added to show the whole size number after reassembly to have a qu
 
 ![Sample](/sample_pic/reassemble_sample.gif "Sample")
 
-- sample of HTTP(HTML) parsing Result:
-
-![Sample](/sample_pic/html_sample.gif "HTML Sample")
 
 ### HTTP Request/Response information
 
@@ -115,7 +112,7 @@ keyword
 image
 
 #search packet of which tcp sport==80 and keyword 'image'(advanced search)
--p tcp -sport 80 image
+-p tcp -sp 80 image
 ```
 
 

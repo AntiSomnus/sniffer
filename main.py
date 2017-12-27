@@ -1579,7 +1579,7 @@ class Ui_MainWindow(object):
                     s.setFrameStyle(QFrame.NoFrame)
                     s.setStyleSheet("QScrollArea {background-color: white}")
                     self.tabWidget_2.addTab(
-                        s, 'HTTP response Content(%s)'%response.headers['Content-Type'].split('/')[-1])
+                        s, 'HTTP Response Content(%s)'%response.headers['Content-Type'].split('/')[-1])
                 else:
                     self.CreateNewTab(self.tabWidget_2, "HTTP Response Content(%s)"%response.headers['Content-Type'].split('/')[-1],
                                     s + content)
@@ -1606,7 +1606,7 @@ class Ui_MainWindow(object):
                     s.setFrameStyle(QFrame.NoFrame)
                     s.setStyleSheet("QScrollArea {background-color: white}")
                     self.tabWidget_2.addTab(
-                        s, 'HTTP response Content(%s)'%infodict['Content-Type'].split('/')[-1])
+                        s, 'HTTP Response Content(%s)'%infodict['Content-Type'].split('/')[-1])
                 else:
                     try:
                         self.CreateNewTab(self.tabWidget_2, "HTTP Response Content(%s)"%infodict['Content-Type'].split('/')[-1],
