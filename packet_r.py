@@ -41,7 +41,22 @@ class Packet_r():
 
         self.packet = packet
         self.tcp_order = True  # default every packer is in order
-
+        try:
+            self.ipsrc=packet[IP].src
+            self.ipdst=packet[IP].dst
+        except:
+            pass
+        try:
+            self.sp=str(packet[TCP].sport)
+            self.dp=str(packet[TCP].dport)
+        except:
+            pass
+        try:
+            self.sp=str(packet[UDP].sport)
+            self.dp=str(packet[UDP].dport)
+        except:
+            pass
+        self.pro=''
     def expand(self):
         """Expand get all payload.
 
@@ -136,6 +151,7 @@ class Packet_r():
                 else:
                     pkt_pro = self.packet.lastlayer().name
             pkt_pro = pkt_pro.split(" ")[0]
+            self.pro=pkt_pro
             info = [
                 str(self.packet.num),
                 self.packet.time, pkt_src, pkt_dst,
@@ -148,6 +164,7 @@ class Packet_r():
                 self.packet.time, "unknown",
                 "unknown", "unknown", "unknown"
             ]
+
         return info
 
     def packet_to_load_utf8(self):

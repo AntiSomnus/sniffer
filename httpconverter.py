@@ -43,10 +43,13 @@ class HttpHeader():
         Returns:
         tuple  (a string of the brief info(GET ……) , a dict of header)
         """
+        content=''
         request_string=self.data
         info, headers = request_string.split('\r\n', 1)
-        headers,content=headers.split('\r\n\r\n', 1)
-
+        try:
+            headers,content=headers.split('\r\n\r\n', 1)
+        except:
+            pass
         # construct a message from the request string
         message = email.message_from_file(StringIO(headers))
         # construct a dictionary containing the headers

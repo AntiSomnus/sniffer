@@ -354,8 +354,11 @@ class Table(QtWidgets.QTableWidget):
                     return
             color_list = share.list_packet[last_row].getColor()
             for i in range(6):
-                self.item(share.last_row, i).setBackground(QtGui.QColor(
+                try:
+                    self.item(share.last_row, i).setBackground(QtGui.QColor(
                     color_list[0][0], color_list[0][1], color_list[0][2]))
+                except AttributeError:
+                    pass
             share.last_row = ''
 
     def contextMenuEvent(self, event):
@@ -1249,6 +1252,42 @@ class Ui_MainWindow(object):
             self.save_reassemble_button.show()
             return
 
+    def matchKeyword(self,keyword):
+        dict_attr={}
+        pro=''
+        content=''
+        #match protocol
+        t=re.search('(?<=-p\s).\s*\S*',keyword)
+        if t:
+            keyword=keyword.replace('-p '+t[0],'')
+            pro=t[0].strip().lower()
+        #match ip.src
+        t=re.search('(?<=-s\s).\s*\S*',keyword)
+        if t:
+            keyword=keyword.replace('-s '+t[0],'')
+            dict_attr['ipsrc']=t[0].strip().lower()
+        #match ip.dst
+        t=re.search('(?<=-d\s).\s*\S*',keyword)
+        if t:
+            keyword=keyword.replace('-d '+t[0],'')
+            dict_attr['ipdst']=t[0].strip().lower()
+        #match tcp.sport
+        t=re.search('(?<=-sp\s).\s*\S*',keyword)
+        if t:
+            keyword=keyword.replace('-sp '+t[0],'')
+            dict_attr['sp']=t[0].strip().lower()
+        #match tcp.dport
+        t=re.search('(?<=-dp\s).\s*\S*',keyword)
+        if t:
+            keyword=keyword.replace('-dp '+t[0],'')
+            dict_attr['dp']=t[0].strip().lower()
+        #search content
+        content=keyword.strip()
+
+        if (dict_attr=={} and pro=='' and content==''):
+            content=keyword.lower()
+        return (pro,dict_attr,content)
+
     def EvtSearch(self):
         """Event of searching keywords.
 
@@ -1262,18 +1301,36 @@ class Ui_MainWindow(object):
         self.tableWidget.setRowCount(0)
 
         keyword = self.searchbar.text()
-
+        pro,match_result,content=self.matchKeyword(keyword)
         share.flag_search = True
         after_search_index = 0
+
         for i in range(len(share.list_tmp)):
+            current_packet=share.list_packet[i]
+            if (pro!='' or match_result!={}):
+                """Whether advanced search or not."""
+                try:
+                    #if one condition is wrong, raise an error.
+                    if (current_packet.pro.lower()!=pro and pro != '') :
+                        """Detect protocol."""
+                        raise ValueError
+                    for j in match_result.keys():
+                        """Detect whether satisfy the requirements in dict."""
+                        try:
+                            if (match_result[j]!=getattr(current_packet,j)):
+                                raise ValueError
+                        except:
+                            raise ValueError
+                except :
+                    continue
             try:
                 # keywords can exist in raw/utf-8/GB2312 packet
-                sentence = share.list_packet[i].packet_to_all().lower()
-                sentence += share.list_packet[i].packet_to_load_gb().lower()
-                sentence += share.list_packet[i].packet_to_load_utf8().lower()
+                sentence = current_packet.packet_to_all().lower()
+                sentence += current_packet.packet_to_load_gb().lower()
+                sentence += current_packet.packet_to_load_utf8().lower()
             except:
                 pass
-            if (keyword.lower() in sentence):
+            if (content.lower() in sentence):
                 share.dict_search[after_search_index] = i
                 self.tableWidget.insertRow(after_search_index)
                 color_list = share.list_packet[int(
@@ -1289,6 +1346,7 @@ class Ui_MainWindow(object):
                             (color_list[0][0] - 30) % 256, (color_list[0][1] - 30) % 256, (color_list[0][2] - 30) % 256))
                     self.tableWidget.setItem(after_search_index, j, item)
                 after_search_index += 1
+
         if (keyword == ""):
             # if nothing is in the searchbar, return the whole result and keep sniffering
             share.flag_search = False
@@ -1454,6 +1512,7 @@ class Ui_MainWindow(object):
         """
         s = "After reassembly:\n"
         s_gb = s_utf8 = s_raw = ""
+
         try:
             """Find HTTP Response"""
             val = self.val
@@ -1469,7 +1528,6 @@ class Ui_MainWindow(object):
                         break
                 except:
                     raise ValueError
-
             #Because of g-zip, it's hard to determine whether is an end,so just to the end.
             http_request_head_list = total_list[up:]
             if (val in http_request_head_list):
@@ -1482,46 +1540,82 @@ class Ui_MainWindow(object):
                         pass
             first_index = http_request_head_list[0]
 
-            info = share.list_packet[first_index].load.split(b'\r\n')[
+            info = share.list_packet[first_index].load.split(b'\r\n\r\n',1)[
                 0].decode('utf8')
-            response = HttpConverter(content).getcontent()
-
-            h = ""
-            for i in response.headers:
-                QtCore.QCoreApplication.processEvents()
-
-                h += "%-20s%s\n" % ((str(i) + ":"), str(response.headers[i]))
-            s = "No. " + \
-                str(self.val) + \
-                " can be TCP assembled by following %d packet" % len(
-                    self.final_tcp_seq)
-            if (len(self.final_tcp_seq) > 1):
-                s += "s"
-            s += ":\n"
-
-            for i in self.final_tcp_seq:
-                QtCore.QCoreApplication.processEvents()
-                s = s + "No. " + str(i[1][0]) + ", "
-            s = s[:-2] + "\n" + "After reassembly:" + "\n"
             try:
-                content = response.data
-                content = content.decode('utf8')
+                response = HttpConverter(content).getcontent()
+                """try gzip compression"""
+                h = ""
+                for i in response.headers:
+                    QtCore.QCoreApplication.processEvents()
+
+                    h += "%-20s%s\n" % ((str(i) + ":"), str(response.headers[i]))
+
+                for i in self.final_tcp_seq:
+                    QtCore.QCoreApplication.processEvents()
+                    s = s + "No. " + str(i[1][0]) + ", "
+                s = s[:-2] + "\n" + "After reassembly:" + "\n"
+                try:
+                    content = response.data
+                    content = content.decode('utf8')
+                except:
+                    content = str(content)[2:-1]
+
+                self.http_content = response.data
+                h = "HTTP Response Header in No. " + \
+                    str(first_index) + '\n' + info.split('\r\n')[0] + '\n' + h
+
+                self.CreateNewTab(self.tabWidget_2, "HTTP Response Header", h)
+
+
+                if  ('image' in response.headers['Content-Type']):
+                    """Http content is image"""
+                    image=QPixmap()
+                    image.loadFromData(response.data)
+                    a = QtWidgets.QLabel()
+                    a.setPixmap(image)
+                    s=QtWidgets.QScrollArea()
+                    s.setWidget(a)
+                    s.setFrameStyle(QFrame.NoFrame)
+                    s.setStyleSheet("QScrollArea {background-color: white}")
+                    self.tabWidget_2.addTab(
+                        s, 'HTTP response Content(%s)'%response.headers['Content-Type'].split('/')[-1])
+                else:
+                    self.CreateNewTab(self.tabWidget_2, "HTTP Response Content(%s)"%response.headers['Content-Type'].split('/')[-1],
+                                    s + content)
             except:
-                content = str(content)[2:-1]
+                """deliver raw bytes"""
+                h = "HTTP Response Header in No. " + \
+                    str(first_index) + '\n' + info
+                c=content.split(b'\r\n\r\n',1)[-1]
+                self.http_content=c
+                brief,infodict,content=HttpHeader(info).getheader()
 
-            self.http_content = response.data
-            h = "HTTP Response Header in No. " + \
-                str(first_index) + '\n' + info + '\n' + h
+                for i in self.final_tcp_seq:
+                    QtCore.QCoreApplication.processEvents()
+                    s = s + "No. " + str(i[1][0]) + ", "
+                s = s[:-2] + "\n" + "After reassembly:" + "\n"
+                self.CreateNewTab(self.tabWidget_2, "HTTP Response Header", h)
+                if ('image' in infodict['Content-Type']):
+                    """Http content is image"""
+                    image=QPixmap()
+                    image.loadFromData(c)
+                    a = QtWidgets.QLabel()
+                    a.setPixmap(image)
+                    s=QtWidgets.QScrollArea()
+                    s.setFrameStyle(QFrame.NoFrame)
+                    s.setStyleSheet("QScrollArea {background-color: white}")
+                    self.tabWidget_2.addTab(
+                        s, 'HTTP response Content(%s)'%infodict['Content-Type'].split('/')[-1])
+                else:
+                    try:
+                        self.CreateNewTab(self.tabWidget_2, "HTTP Response Content(%s)"%infodict['Content-Type'].split('/')[-1],
+                                        s + c.decode('utf8'))
+                    except:
+                        self.CreateNewTab(self.tabWidget_2, "HTTP Response Content",
+                                        s + 'Raw bytes cannot be decoded by utf8.')
 
-            self.CreateNewTab(self.tabWidget_2, "HTTP Response Header", h)
 
-            self.CreateNewTab(self.tabWidget_2, "HTTP Response Content",
-                              s + content)
-            a = QtWidgets.QTextBrowser()
-            a.setFrameStyle(QFrame.NoFrame)
-            a.setHtml(content)
-            self.tabWidget_2.addTab(
-                a, 'HTML')
         except:
             try:
                 """Find HTTP request."""
