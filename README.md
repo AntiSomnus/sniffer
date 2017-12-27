@@ -92,9 +92,13 @@ New feature is added to show the whole size number after reassembly to have a qu
 
 After reassembling the TCP packet, next move is to show you the whole information in HTTP layer, espeically for HTML or image. You will be aware of how dangerous it is when the protocol is HTTP because what you have input is always transferred without any protection, or you can preview every image during the http transmission.
 
-- sample of preview image of HTTP transmission:
+- sample of sniffing username and password from HTTP Request(POST):
 
-![Sample](/sample_pic/preview_sample.gif "HTTP transmission")
+![Sample](/sample_pic/stole_sample.gif "HTTP Request")
+
+- sample of preview images from HTTP Response:
+
+![Sample](/sample_pic/preview_sample.gif "HTTP Response")
 
 ### Search bar makes things easier
 
