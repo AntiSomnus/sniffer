@@ -1768,11 +1768,6 @@ if __name__ == "__main__":
         share.mac_dict[share.interfaces[i]] = share.list_mac[i]
      # using manager to share values between processes
     manager = Manager()
-    iface = manager.Value(c_char_p, "")
-    pro = manager.Value(c_char_p, "")
-    port = manager.Value(c_char_p, "")
-    src = manager.Value(c_char_p, "")
-    dst = manager.Value(c_char_p, "")
     flag_dict = manager.dict()
     flag_dict['start'] = False
     flag_dict['close'] = False
@@ -1784,12 +1779,10 @@ if __name__ == "__main__":
     flag_dict['sport'] = ''
     flag_dict['dst'] = ''
     flag_dict['dport'] = ''
-
     flag_dict['mac'] = ''
     flag_dict['up'] = 0
     flag_dict['down'] = 0
     list_byte = manager.list()
-    list_info = manager.list()
     # list to store and fetch packet
     pkt_lst = manager.Queue()
     p = Process(target=InfiniteProcess, name="InfiniteProcess",
