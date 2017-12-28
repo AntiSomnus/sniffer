@@ -79,122 +79,6 @@ import psutil
 """The following functions are used to handle tcp reassembly"""
 
 
-def packet_tcp_seq(seq, src, dst, sport, dport):
-    """Return the related fragments of given `seq`.
-
-    When given the `seq`, processing `packet_tcp_seq_backward`
-    and `packet_tcp_seq_forward` to find related fragments
-    all over the storage.
-    Args:
-        seq: int, the seq number of a TCP packet
-        src: str, MAC src a TCP packet
-        dst: str, MAC dst a TCP packet
-        sport: str, TCP sport a TCP packet
-        dport: str, TCP dport a TCP packet
-    Returns:
-    list like [(seq, (packet number, Raw len)),...]
-    """
-    selected_seq = seq
-    selected_src = src
-    selected_dst = dst
-    selected_sport = sport
-    selected_dport = dport
-    num_list = []
-    seq_list = []
-    len_list = []
-    assemble_candidate = []
-    final_tcp_seq = []
-    for item in share.tcp_seq:
-        if item[3] == selected_src and item[4] == selected_dst and item[5] == selected_sport and item[6] == selected_dport:
-            num_list.append(item[0])
-            seq_list.append(item[1])
-            len_list.append(item[2])
-    i = 0
-    for seq in seq_list:
-        if seq == selected_seq:
-            assemble_candidate.append({"p_position": i,
-                                       "q_position": i,
-                                       "p": [(seq_list[i], (num_list[i], len_list[i]))],
-                                       "q": [(seq_list[i], (num_list[i], len_list[i]))]})
-        i += 1
-    flag = True
-    while flag:
-        assemble_candidate, flag = packet_tcp_seq_forward(
-            assemble_candidate, num_list, seq_list, len_list)
-    flag = True
-    while flag:
-        assemble_candidate, flag = packet_tcp_seq_backward(
-            assemble_candidate, num_list, seq_list, len_list)
-    for candidate in assemble_candidate:
-        if (candidate["p"]):
-            candidate["p"].pop(0)
-
-        if len(final_tcp_seq) < len(candidate["q"] + candidate["p"]):
-            final_tcp_seq = candidate["q"] + candidate["p"]
-    return final_tcp_seq
-
-
-def packet_tcp_seq_forward(assemble_candidate, num_list, seq_list, len_list):
-    """Return tcp reassembly forward result
-
-    Args:
-        assemble_candidate: list of all posibilities that the TCP packets can be assembled
-        num_list: list of packet.num
-        seq_list: list of packet.seq
-        len_list: list of packet.len
-
-    Returns:
-        The forward part(packet num larger that this one)
-    list like [(seq, (packet number, Raw len)),...]
-    """
-    new_assemble_candidate = []
-    for candidate in assemble_candidate:
-        position = candidate["p_position"]
-        i = position + 1
-        while i < len(seq_list):
-            if seq_list[position] + len_list[position] == seq_list[i]:
-                candidate["p_position"] = i
-                candidate["p"].append((seq_list[i], (num_list[i], len_list[i])))
-                new_assemble_candidate.append(candidate)
-            i += 1
-    if new_assemble_candidate == []:
-        new_assemble_candidate = assemble_candidate
-        flag = False
-    else:
-        flag = True
-    return new_assemble_candidate, flag
-
-
-def packet_tcp_seq_backward(assemble_candidate, num_list, seq_list, len_list):
-    """Return tcp reassembly backward result
-
-    Args:
-        assemble_candidate: list of all posibilities that the TCP packets can be assembled
-        num_list: list of packet.num
-        seq_list: list of packet.seq
-        len_list: list of packet.len
-
-    Returns:
-        The forward part(packet num larger that this one)
-    list like [(seq, (packet number, Raw len)),...]
-    """
-    new_assemble_candidate = []
-    for candidate in assemble_candidate:
-        position = candidate["q_position"]
-        i = position - 1
-        while i >= 0:
-            if seq_list[i] + len_list[i] == seq_list[position]:
-                candidate["q_position"] = i
-                candidate["q"].insert(
-                    0, (seq_list[i], (num_list[i], len_list[i])))
-                new_assemble_candidate.append(candidate)
-            i -= 1
-    if new_assemble_candidate == []:
-        new_assemble_candidate = assemble_candidate
-        flag = False
-    else:
-        flag = True
-    return new_assemble_candidate, flag
 
 
 """The following function is used to give wireshark-type string"""
@@ -1185,7 +1069,7 @@ class Ui_MainWindow(object):
 
             if "TCP" in i:
                 p = share.list_packet[val]
-                self.final_tcp_seq = packet_tcp_seq(
+                self.final_tcp_seq = self.packet_tcp_seq(
                     p.seq, p.src, p.dst, p.sport, p.dport)
 
         self.reassemble_size = 0
@@ -1213,11 +1097,11 @@ class Ui_MainWindow(object):
             s = s[:-2]
             self.CreateNewTab(self.tabWidget_2,
                               "Reassembly Info(%dB)" % self.reassemble_size, s)
-            if (len(self.final_tcp_seq) < 2000):
-                """Total reassemble seq len<2000 means quick reassemble, which shows result immediately"""
+            if (len(self.final_tcp_seq) < 5000):
+                """Total reassemble seq len<5000 means quick reassemble, which shows result immediately"""
                 self.ShowTcpResult()
             else:
-                """Total reassemble seq len>2000 means slow reassemble, which should wait for user's response"""
+                """Total reassemble seq len>5000 means slow reassemble, which should wait for user's response"""
                 self.continue_reassemble_button.show()
             self.save_reassemble_button.show()
             return
@@ -1306,6 +1190,7 @@ class Ui_MainWindow(object):
         after_search_index = 0
 
         for i in range(len(share.list_tmp)):
+            QtCore.QCoreApplication.processEvents()
             current_packet=share.list_packet[i]
             if (pro!='' or match_result!={}):
                 """Whether advanced search or not."""
@@ -1752,6 +1637,69 @@ class Ui_MainWindow(object):
         a.setFont(QFont('Consolas', 10, QFont.Light))
         tab.addTab(a, title)
 
+    def packet_tcp_seq(self,seq, src, dst, sport, dport):
+        """Return the related fragments of given `seq`.
+
+        When given the `seq`, processing `packet_tcp_seq_backward`
+        and `packet_tcp_seq_forward` to find related fragments
+        all over the storage.
+        Args:
+            seq: int, the seq number of a TCP packet
+            src: str, MAC src a TCP packet
+            dst: str, MAC dst a TCP packet
+            sport: str, TCP sport a TCP packet
+            dport: str, TCP dport a TCP packet
+        Returns:
+        list like [(seq, (packet number, Raw len)),...]
+        """
+
+        selected_seq = seq
+        selected_src = src
+        selected_dst = dst
+        selected_sport = sport
+        selected_dport = dport
+        tmp_tcp_seq = []
+        num_list = []
+        seq_list = []
+        len_list = []
+        assemble_candidate = []
+        final_tcp_seq = []
+        for item in share.tcp_seq:
+            if item[3] == selected_src and item[4] == selected_dst and item[5] == selected_sport and item[6] == selected_dport:
+                tmp_tcp_seq.append(item)
+        # sort tmp_tcp_seq
+        dict_seqlen_num={}
+        for item in tmp_tcp_seq:
+            num,seq,length=item[:3]
+            dict_seqlen_num[(seq,length)]=num
+        num=self.val
+        lst_seqlen=list(dict_seqlen_num.keys())
+        lst_seqlen.sort(key=lambda tup: tup[0])
+        try:
+            selected_len=len(share.list_packet[num].packet[Raw])
+        except:
+            selected_len=0
+        #find selected (seq,len) and the corresponding index
+        selected_seqlen=(selected_seq,selected_len)
+        selected_index=lst_seqlen.index(selected_seqlen)
+        seq=selected_seqlen[0]
+        l=[(seq,(num,selected_seqlen[1]))]
+        for i in range(selected_index-1,-1,-1):
+            QtCore.QCoreApplication.processEvents()
+            current_seqlen=lst_seqlen[i]
+            if(current_seqlen[0]+current_seqlen[1]==seq):
+                seq,length=current_seqlen
+                num=dict_seqlen_num[current_seqlen]
+                l.insert(0,(seq,(num,length)))
+        seq,length=selected_seqlen
+        for i in range(selected_index+1,len(lst_seqlen)):
+            QtCore.QCoreApplication.processEvents()
+            current_seqlen=lst_seqlen[i]
+            if(seq+length==current_seqlen[0]):
+                seq,length=current_seqlen
+                num=dict_seqlen_num[current_seqlen]
+                l.append((seq,(num,length)))
+        return (l)
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
