@@ -1684,6 +1684,7 @@ class Ui_MainWindow(object):
         selected_index=lst_seqlen.index(selected_seqlen)
         seq=selected_seqlen[0]
         l=[(seq,(num,selected_seqlen[1]))]
+        #index from selected_index-1 to 0
         for i in range(selected_index-1,-1,-1):
             QtCore.QCoreApplication.processEvents()
             current_seqlen=lst_seqlen[i]
@@ -1692,6 +1693,7 @@ class Ui_MainWindow(object):
                 num=dict_seqlen_num[current_seqlen]
                 l.insert(0,(seq,(num,length)))
         seq,length=selected_seqlen
+        #index from selected_index+1 to len-1
         for i in range(selected_index+1,len(lst_seqlen)):
             QtCore.QCoreApplication.processEvents()
             current_seqlen=lst_seqlen[i]
