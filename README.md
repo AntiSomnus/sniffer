@@ -52,7 +52,7 @@ pip install -r requirements.txt
 python main.py
 
 #Optional lib `pyshark` for parsing brief info from packet.
-#pyshark version 0.3.6.2 is the only one that works an.
+#pyshark version 0.3.6.2 is the only one that works.
 pip install pyshark==0.3.6.2
 ```
 
