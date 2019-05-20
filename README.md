@@ -1,6 +1,6 @@
 # Sniffer
 
-Simple sniffer using Scapy and PyQt5.
+Simple sniffer using Scapy and PyQt5 on Windows.
 
 ![Sample](/sample_pic/overall_sample.gif "Sample")
 
@@ -30,6 +30,7 @@ Just download them all and run main.py
 
 ### Prerequisites
 
+- **Windows 10**
 - Python 3.6
 - Modified [scapy3k](https://github.com/phaethon/scapy) Used for multiprocessing purposes. Just use directly from here.
 - [ansi2html](https://github.com/ralphbean/ansi2html)  Used to parse ANSI ESCAPE Sequence to html css.
